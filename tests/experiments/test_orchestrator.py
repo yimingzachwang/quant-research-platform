@@ -123,7 +123,8 @@ def test_run_returns_experiment_run(tmp_path: Path) -> None:
 
 def test_run_output_path_is_directory(tmp_path: Path) -> None:
     prices = _make_prices(["SPY", "QQQ"])
-    cfg = {**_MINIMAL_CFG, "output": {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "registry.json")}}
+    out = {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "registry.json")}
+    cfg = {**_MINIMAL_CFG, "output": out}
     p = _write_cfg(tmp_path, cfg)
     run = _run_with_mock(p, prices)
     assert run.output_path.is_dir()
@@ -131,7 +132,8 @@ def test_run_output_path_is_directory(tmp_path: Path) -> None:
 
 def test_run_saves_raw_config(tmp_path: Path) -> None:
     prices = _make_prices(["SPY", "QQQ"])
-    cfg = {**_MINIMAL_CFG, "output": {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "registry.json")}}
+    out = {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "registry.json")}
+    cfg = {**_MINIMAL_CFG, "output": out}
     p = _write_cfg(tmp_path, cfg)
     run = _run_with_mock(p, prices)
     assert (run.output_path / "raw_config.yaml").exists()
@@ -139,7 +141,8 @@ def test_run_saves_raw_config(tmp_path: Path) -> None:
 
 def test_run_saves_normalized_config(tmp_path: Path) -> None:
     prices = _make_prices(["SPY", "QQQ"])
-    cfg = {**_MINIMAL_CFG, "output": {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "registry.json")}}
+    out = {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "registry.json")}
+    cfg = {**_MINIMAL_CFG, "output": out}
     p = _write_cfg(tmp_path, cfg)
     run = _run_with_mock(p, prices)
     assert (run.output_path / "normalized_config.json").exists()
@@ -208,7 +211,8 @@ def test_run_with_validation_produces_walk_forward(tmp_path: Path) -> None:
 def test_run_json_config(tmp_path: Path) -> None:
     prices = _make_prices(["SPY", "QQQ"])
     p = tmp_path / "cfg.json"
-    cfg_with_output = {**_MINIMAL_CFG, "output": {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "r.json")}}
+    out = {"base_dir": str(tmp_path / "results"), "registry_path": str(tmp_path / "r.json")}
+    cfg_with_output = {**_MINIMAL_CFG, "output": out}
     p.write_text(json.dumps(cfg_with_output), encoding="utf-8")
     run = _run_with_mock(p, prices)
     assert isinstance(run, ExperimentRun)

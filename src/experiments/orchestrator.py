@@ -447,86 +447,86 @@ def _build_plots(
 _PLOT_METADATA: list[dict[str, str]] = [
     # Core performance — always present
     {"name": "equity_and_drawdown", "group": "performance", "importance": "primary",
-     "caption": "Full-period equity curve (top) and drawdown (bottom). Cumulative net-of-cost growth anchored at 1.0; the drawdown panel shows peak-to-trough loss at each date."},
+     "caption": "Full-period equity curve (top) and drawdown (bottom). Cumulative net-of-cost growth anchored at 1.0; the drawdown panel shows peak-to-trough loss at each date."},  # noqa: E501
     {"name": "rolling_sharpe", "group": "performance", "importance": "primary",
-     "caption": "252-trading-day rolling Sharpe ratio. Values consistently above zero confirm the strategy's risk-adjusted edge is not concentrated in a single sub-period."},
+     "caption": "252-trading-day rolling Sharpe ratio. Values consistently above zero confirm the strategy's risk-adjusted edge is not concentrated in a single sub-period."},  # noqa: E501
     {"name": "rolling_volatility", "group": "performance", "importance": "secondary",
-     "caption": "63-day rolling annualised volatility. Persistent elevation indicates regime shifts; spikes mark acute stress events that may explain drawdown windows."},
+     "caption": "63-day rolling annualised volatility. Persistent elevation indicates regime shifts; spikes mark acute stress events that may explain drawdown windows."},  # noqa: E501
     # Portfolio construction
     {"name": "allocation_history", "group": "portfolio", "importance": "secondary",
-     "caption": "Stacked allocation history — fractional weight per asset at each rebalance date. Concentration corresponds to momentum leaders in the cross-sectional ranking."},
+     "caption": "Stacked allocation history — fractional weight per asset at each rebalance date. Concentration corresponds to momentum leaders in the cross-sectional ranking."},  # noqa: E501
     {"name": "portfolio_turnover", "group": "portfolio", "importance": "secondary",
-     "caption": "Daily portfolio turnover (bars) and 21-day rolling average (line). Turnover directly scales transaction-cost drag; spikes at regime transitions are expected."},
+     "caption": "Daily portfolio turnover (bars) and 21-day rolling average (line). Turnover directly scales transaction-cost drag; spikes at regime transitions are expected."},  # noqa: E501
     # Walk-forward validation
     {"name": "walk_forward_stitched", "group": "validation", "importance": "primary",
-     "caption": "Stitched out-of-sample equity curve: each segment is one walk-forward test window concatenated in chronological order. Upward drift confirms structural alpha."},
+     "caption": "Stitched out-of-sample equity curve: each segment is one walk-forward test window concatenated in chronological order. Upward drift confirms structural alpha."},  # noqa: E501
     {"name": "split_sharpes", "group": "validation", "importance": "primary",
-     "caption": "Per-split out-of-sample Sharpe ratios. Consistent positive values across splits indicate a regime-independent signal; negative outliers highlight stress periods."},
+     "caption": "Per-split out-of-sample Sharpe ratios. Consistent positive values across splits indicate a regime-independent signal; negative outliers highlight stress periods."},  # noqa: E501
     {"name": "split_equity_curves", "group": "validation", "importance": "secondary",
-     "caption": "Overlay of individual out-of-sample equity curves by split. Similar trajectories confirm cross-period stability; divergent curves indicate regime sensitivity."},
+     "caption": "Overlay of individual out-of-sample equity curves by split. Similar trajectories confirm cross-period stability; divergent curves indicate regime sensitivity."},  # noqa: E501
     {"name": "train_vs_test_sharpe", "group": "validation", "importance": "secondary",
-     "caption": "In-sample vs out-of-sample Sharpe comparison per split. Large train/test gaps suggest in-sample overfitting; modest gaps are consistent with genuine generalisation."},
+     "caption": "In-sample vs out-of-sample Sharpe comparison per split. Large train/test gaps suggest in-sample overfitting; modest gaps are consistent with genuine generalisation."},  # noqa: E501
     # ML signal
     {"name": "ml_information_coefficient", "group": "ml_signal", "importance": "primary",
-     "caption": "Monthly rolling information coefficient (Pearson correlation of predicted vs actual returns). Persistent positive IC confirms the model adds directional information beyond chance."},
+     "caption": "Monthly rolling information coefficient (Pearson correlation of predicted vs actual returns). Persistent positive IC confirms the model adds directional information beyond chance."},  # noqa: E501
     {"name": "ml_prediction_vs_actual", "group": "ml_signal", "importance": "secondary",
-     "caption": "Prediction vs actual overlay (top panel) and scatter (bottom panel). Appendix-level supplement to the rolling IC diagnostics. Concentration along the positive diagonal confirms directional alignment."},
+     "caption": "Prediction vs actual overlay (top panel) and scatter (bottom panel). Appendix-level supplement to the rolling IC diagnostics. Concentration along the positive diagonal confirms directional alignment."},  # noqa: E501
     {"name": "ml_prediction_distribution", "group": "ml_signal", "importance": "secondary",
-     "caption": "Distribution of raw model predictions. Near-symmetric distributions centred near zero indicate a well-calibrated model without directional drift or label leakage."},
+     "caption": "Distribution of raw model predictions. Near-symmetric distributions centred near zero indicate a well-calibrated model without directional drift or label leakage."},  # noqa: E501
     {"name": "ml_residuals", "group": "ml_signal", "importance": "primary",
-     "caption": "Residual diagnostics: distribution of prediction errors (top) and rolling residual mean (bottom). A rolling mean persistently away from zero indicates systematic regime-specific bias."},
+     "caption": "Residual diagnostics: distribution of prediction errors (top) and rolling residual mean (bottom). A rolling mean persistently away from zero indicates systematic regime-specific bias."},  # noqa: E501
     {"name": "ml_coefficient_stability", "group": "ml_model", "importance": "primary",
-     "caption": "Mean ± std of model coefficients across walk-forward splits. Bars with consistent sign and similar magnitude confirm a stable, replicable learned relationship."},
+     "caption": "Mean ± std of model coefficients across walk-forward splits. Bars with consistent sign and similar magnitude confirm a stable, replicable learned relationship."},  # noqa: E501
     {"name": "ml_coefficient_evolution", "group": "ml_model", "importance": "secondary",
-     "caption": "Coefficient trajectory across walk-forward splits (chronological). Stable features maintain consistent sign and magnitude; unstable features cross zero, indicating regime-dependent learning."},
+     "caption": "Coefficient trajectory across walk-forward splits (chronological). Stable features maintain consistent sign and magnitude; unstable features cross zero, indicating regime-dependent learning."},  # noqa: E501
     {"name": "ml_signal_turnover", "group": "ml_signal", "importance": "secondary",
-     "caption": "Per-period signal turnover (absolute position change). High turnover inflates transaction costs; the model's net alpha must comfortably exceed the implied cost drag."},
+     "caption": "Per-period signal turnover (absolute position change). High turnover inflates transaction costs; the model's net alpha must comfortably exceed the implied cost drag."},  # noqa: E501
     {"name": "feature_correlation_heatmap", "group": "ml_features", "importance": "secondary",
-     "caption": "Pairwise Pearson correlation matrix of the feature space. Low off-diagonal values indicate orthogonal information dimensions; high correlations flag potential multicollinearity."},
+     "caption": "Pairwise Pearson correlation matrix of the feature space. Low off-diagonal values indicate orthogonal information dimensions; high correlations flag potential multicollinearity."},  # noqa: E501
     {"name": "ml_feature_regimes", "group": "ml_features", "importance": "secondary",
-     "caption": "Feature z-score heatmap (±3σ). Red marks periods of extreme positive feature values; blue marks extreme negative. Reveals feature regime transitions and co-movement across the backtest period."},
+     "caption": "Feature z-score heatmap (±3σ). Red marks periods of extreme positive feature values; blue marks extreme negative. Reveals feature regime transitions and co-movement across the backtest period."},  # noqa: E501
     {"name": "ml_ic_regime", "group": "ml_signal", "importance": "primary",
-     "caption": "63-day rolling mean cross-sectional IC through time. Green fill marks sustained periods of positive IC; red marks signal breakdown. Width of each regime reveals persistence vs transience."},
+     "caption": "63-day rolling mean cross-sectional IC through time. Green fill marks sustained periods of positive IC; red marks signal breakdown. Width of each regime reveals persistence vs transience."},  # noqa: E501
     {"name": "ml_rolling_da", "group": "ml_signal", "importance": "primary",
-     "caption": "126-day rolling IC consistency: fraction of days with positive cross-sectional IC. Values above 0.50 indicate the model ranks assets correctly more often than not; below 0.50 marks signal degradation."},
+     "caption": "126-day rolling IC consistency: fraction of days with positive cross-sectional IC. Values above 0.50 indicate the model ranks assets correctly more often than not; below 0.50 marks signal degradation."},  # noqa: E501
     {"name": "ml_coefficient_sign_heatmap", "group": "ml_model", "importance": "primary",
-     "caption": "Coefficient values across walk-forward splits (x-axis) and features (y-axis). Blue = negative, red = positive; saturation encodes magnitude. Colour changes across splits reveal sign reversals and regime-specific learning."},
+     "caption": "Coefficient values across walk-forward splits (x-axis) and features (y-axis). Blue = negative, red = positive; saturation encodes magnitude. Colour changes across splits reveal sign reversals and regime-specific learning."},  # noqa: E501
     {"name": "walk_forward_timeline", "group": "validation", "importance": "primary",
-     "caption": "Gantt-style walk-forward window timeline. Each row is a split; grey = train window, coloured = test window (green positive OOS Sharpe, red negative). OOS Sharpe annotated on each test bar."},
+     "caption": "Gantt-style walk-forward window timeline. Each row is a split; grey = train window, coloured = test window (green positive OOS Sharpe, red negative). OOS Sharpe annotated on each test bar."},  # noqa: E501
     {"name": "feature_ic_heatmap", "group": "ml_features", "importance": "primary",
-     "caption": "Per-feature IC against test-period labels by walk-forward split. Green = positive predictive IC; red = negative. Reveals which features drove signal quality in which regimes and where individual features broke down."},
+     "caption": "Per-feature IC against test-period labels by walk-forward split. Green = positive predictive IC; red = negative. Reveals which features drove signal quality in which regimes and where individual features broke down."},  # noqa: E501
     {"name": "feature_family_ic", "group": "ml_features", "importance": "primary",
-     "caption": "Mean IC aggregated by feature family across walk-forward splits. Grouped bars reveal which hypothesis families (Trend, Volatility, Mean-Reversion, Market Structure) provided net positive signal in each regime and which degraded."},
+     "caption": "Mean IC aggregated by feature family across walk-forward splits. Grouped bars reveal which hypothesis families (Trend, Volatility, Mean-Reversion, Market Structure) provided net positive signal in each regime and which degraded."},  # noqa: E501
     {"name": "ic_by_vol_regime", "group": "ml_features", "importance": "primary",
-     "caption": "Feature family mean IC disaggregated by volatility regime. Each family shows two bars: high-volatility test splits (solid) vs low-volatility test splits (faded). Reveals which feature families provided signal preferentially under stressed vs calm market conditions. The vol regime classification uses the median cross-asset 21D realised vol across walk-forward test windows as the threshold."},
+     "caption": "Feature family mean IC disaggregated by volatility regime. Each family shows two bars: high-volatility test splits (solid) vs low-volatility test splits (faded). Reveals which feature families provided signal preferentially under stressed vs calm market conditions. The vol regime classification uses the median cross-asset 21D realised vol across walk-forward test windows as the threshold."},  # noqa: E501
     {"name": "prediction_strength", "group": "ml_signal", "importance": "primary",
-     "caption": "Prediction-strength bucket analysis. Top panel: mean realized N-day forward return by prediction score group (top, mid, bottom thirds). Monotonic ordering left-to-right confirms that score magnitude — not merely sign — carries economically meaningful cross-sectional information. Bottom panel: cumulative return of each prediction group over time; persistent separation between top and bottom groups confirms durable signal strength."},
+     "caption": "Prediction-strength bucket analysis. Top panel: mean realized N-day forward return by prediction score group (top, mid, bottom thirds). Monotonic ordering left-to-right confirms that score magnitude — not merely sign — carries economically meaningful cross-sectional information. Bottom panel: cumulative return of each prediction group over time; persistent separation between top and bottom groups confirms durable signal strength."},  # noqa: E501
     # Cross-sectional ranking geometry (Phase I)
     {"name": "ranking_geometry", "group": "ml_signal", "importance": "primary",
-     "caption": "Cross-sectional ranking geometry — four panels covering signal geometry, discrimination, and temporal stability. Panel 1: rolling score IQR (left) and rolling IC standard deviation (right, dashed) — low IQR with high IC std identifies compressed-but-erratic regimes. Panel 2: rolling top-vs-bottom score spread — near-zero marks periods of ranking indifference. Panel 3: rolling realized forward-return spread between top and bottom ranked groups (pre-cost gross diagnostic). Panel 4: monthly Spearman rank autocorrelation — high values indicate stable model convictions; near-zero marks arbitrary rank flips each rebalance."},
+     "caption": "Cross-sectional ranking geometry — four panels covering signal geometry, discrimination, and temporal stability. Panel 1: rolling score IQR (left) and rolling IC standard deviation (right, dashed) — low IQR with high IC std identifies compressed-but-erratic regimes. Panel 2: rolling top-vs-bottom score spread — near-zero marks periods of ranking indifference. Panel 3: rolling realized forward-return spread between top and bottom ranked groups (pre-cost gross diagnostic). Panel 4: monthly Spearman rank autocorrelation — high values indicate stable model convictions; near-zero marks arbitrary rank flips each rebalance."},  # noqa: E501
     # Feature contribution diagnostics (Phase II)
     {"name": "feature_contribution_heatmap", "group": "ml_model", "importance": "primary",
-     "caption": "Feature contribution heatmap: realised predictive influence (coefficient × standardised feature value) for each feature through time, grouped by family. Red = positive contribution (model predicts above-average return for this feature state); blue = negative. Regime shifts appear as horizontal band colour transitions; simultaneous sign changes across a family reveal coordinated hypothesis activation or suppression."},
+     "caption": "Feature contribution heatmap: realised predictive influence (coefficient × standardised feature value) for each feature through time, grouped by family. Red = positive contribution (model predicts above-average return for this feature state); blue = negative. Regime shifts appear as horizontal band colour transitions; simultaneous sign changes across a family reveal coordinated hypothesis activation or suppression."},  # noqa: E501
     {"name": "family_contribution_timeline", "group": "ml_model", "importance": "primary",
-     "caption": "Feature family contribution timeline. Top panel: signed rolling family contributions — shows which hypothesis family drove predictions and in which direction. Bottom panel: normalised absolute contribution share — shows which family dominated regardless of sign. Regime shifts appear as share transitions between families; sustained dominance by one family indicates the model operated in a stable predictive regime."},
+     "caption": "Feature family contribution timeline. Top panel: signed rolling family contributions — shows which hypothesis family drove predictions and in which direction. Bottom panel: normalised absolute contribution share — shows which family dominated regardless of sign. Regime shifts appear as share transitions between families; sustained dominance by one family indicates the model operated in a stable predictive regime."},  # noqa: E501
     {"name": "cross_sectional_ic", "group": "ml_signal", "importance": "primary",
-     "caption": "Daily cross-sectional Spearman IC: Spearman rank correlation between predicted scores and realized returns across all assets per date. Persistent positive values confirm the model correctly ranks assets in the cross-section."},
+     "caption": "Daily cross-sectional Spearman IC: Spearman rank correlation between predicted scores and realized returns across all assets per date. Persistent positive values confirm the model correctly ranks assets in the cross-section."},  # noqa: E501
     # Allocation research (Phase 2 — panel mode only)
     {"name": "allocation_concentration_evolution", "group": "portfolio", "importance": "secondary",
-     "caption": "Rolling 63-day concentration dynamics: HHI (top), effective breadth 1/HHI (middle), and entropy-based effective N (bottom). Equal-weight across k assets yields HHI = 1/k and effective N = k; higher HHI and lower breadth/N indicate concentrated bets. Persistent elevation in the HHI panel identifies regimes where the model systematically concentrates into a narrow set of assets."},
+     "caption": "Rolling 63-day concentration dynamics: HHI (top), effective breadth 1/HHI (middle), and entropy-based effective N (bottom). Equal-weight across k assets yields HHI = 1/k and effective N = k; higher HHI and lower breadth/N indicate concentrated bets. Persistent elevation in the HHI panel identifies regimes where the model systematically concentrates into a narrow set of assets."},  # noqa: E501
     {"name": "prediction_dispersion", "group": "ml_signal", "importance": "secondary",
-     "caption": "Rolling 63-day cross-sectional prediction dispersion: cross-sectional standard deviation of raw scores (top) and top-minus-bottom score spread (bottom). Low dispersion indicates score compression — the model assigns near-identical scores across all assets, making rank differences economically arbitrary. Near-zero spread identifies ranking indifference regimes where allocation becomes effectively random within the cross-section."},
+     "caption": "Rolling 63-day cross-sectional prediction dispersion: cross-sectional standard deviation of raw scores (top) and top-minus-bottom score spread (bottom). Low dispersion indicates score compression — the model assigns near-identical scores across all assets, making rank differences economically arbitrary. Near-zero spread identifies ranking indifference regimes where allocation becomes effectively random within the cross-section."},  # noqa: E501
     {"name": "confidence_calibration", "group": "ml_signal", "importance": "primary",
-     "caption": "Confidence calibration: mean realized forward return by prediction-score quintile (Q1 = lowest scores to Q5 = highest). A monotonically increasing pattern — higher-scored assets realizing higher forward returns — confirms that prediction magnitude carries economic information beyond directional sign alone. Non-monotonic patterns reveal calibration failure and flag the need for equal-weight or threshold-gated allocation rather than confidence-weighted schemes."},
+     "caption": "Confidence calibration: mean realized forward return by prediction-score quintile (Q1 = lowest scores to Q5 = highest). A monotonically increasing pattern — higher-scored assets realizing higher forward returns — confirms that prediction magnitude carries economic information beyond directional sign alone. Non-monotonic patterns reveal calibration failure and flag the need for equal-weight or threshold-gated allocation rather than confidence-weighted schemes."},  # noqa: E501
     # Universe diagnostics (G1)
     {"name": "universe_coverage_heatmap", "group": "universe", "importance": "primary",
-     "caption": "Monthly price coverage fraction by asset. Green = full availability; red = data gaps. Identifies structurally incomplete assets that reduce effective universe breadth."},
+     "caption": "Monthly price coverage fraction by asset. Green = full availability; red = data gaps. Identifies structurally incomplete assets that reduce effective universe breadth."},  # noqa: E501
     {"name": "asset_availability_timeline", "group": "universe", "importance": "primary",
-     "caption": "Rolling count of assets with valid prices. Structural drops reveal asset additions, delistings, or persistent data gaps affecting cross-sectional breadth."},
+     "caption": "Rolling count of assets with valid prices. Structural drops reveal asset additions, delistings, or persistent data gaps affecting cross-sectional breadth."},  # noqa: E501
     {"name": "cross_asset_volatility", "group": "universe", "importance": "primary",
-     "caption": "63-day rolling annualised volatility per asset. Persistent divergence between risk-on and risk-off assets confirms macro regime heterogeneity. Synchronised spikes identify systemic stress."},
+     "caption": "63-day rolling annualised volatility per asset. Persistent divergence between risk-on and risk-off assets confirms macro regime heterogeneity. Synchronised spikes identify systemic stress."},  # noqa: E501
     {"name": "universe_correlation_heatmap", "group": "universe", "importance": "primary",
-     "caption": "Full-period pairwise return correlation matrix. Correlated clusters reduce effective cross-sectional breadth; orthogonal pairs (e.g. TLT vs equities) confirm regime diversification."},
+     "caption": "Full-period pairwise return correlation matrix. Correlated clusters reduce effective cross-sectional breadth; orthogonal pairs (e.g. TLT vs equities) confirm regime diversification."},  # noqa: E501
 ]
 
 

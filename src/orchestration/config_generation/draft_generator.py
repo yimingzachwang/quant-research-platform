@@ -124,7 +124,7 @@ def generate_draft(
         raise FileNotFoundError(
             f"No YAML config found for {experiment_name!r} at {config_path}. "
             "Draft generation requires a version-2 ML config file."
-        )
+        ) from None
 
     if str(base_config.get("version", "1")) != "2":
         raise ValueError(
@@ -291,7 +291,7 @@ def _parse_llm_response(
         raise ValueError(
             f"LLM returned invalid JSON: {exc}. "
             f"Response (first 300 chars): {text[:300]!r}"
-        )
+        ) from exc
     if not isinstance(data, dict):
         raise ValueError(
             f"LLM response must be a JSON object, got {type(data).__name__}."

@@ -201,7 +201,8 @@ _SAMPLE_OUTPUT = """\
 Investigate whether breakout_63d sign instability explains the catastrophic_split failure mode.
 
 ### Rationale
-The catastrophic_split failure mode (worst split Sharpe -1.07) and std_oos_sharpe of 1.437 suggest regime sensitivity. The most_volatile_feature breakout_63d may amplify cross-split instability.
+The catastrophic_split failure mode (worst split Sharpe -1.07) and std_oos_sharpe of 1.437
+suggest regime sensitivity. The most_volatile_feature breakout_63d may amplify cross-split instability.
 
 ### Supporting Evidence
 - catastrophic_split: worst split Sharpe -1.07

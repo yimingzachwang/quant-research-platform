@@ -177,7 +177,10 @@ def _check_ml_signal(ml_model_diagnostics: dict[str, Any]) -> list[FailureMode]:
         modes.append(FailureMode(
             name="poor_directional_accuracy",
             severity=SEVERITY_WARNING,
-            description=f"Directional accuracy {da * 100:.1f}% — model predicts return direction correctly less than 48% of the time.",
+            description=(
+                f"Directional accuracy {da * 100:.1f}% — model predicts return direction "
+                "correctly less than 48% of the time."
+            ),
             evidence={"directional_accuracy": da},
         ))
 

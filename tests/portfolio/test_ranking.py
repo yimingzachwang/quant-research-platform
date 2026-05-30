@@ -94,7 +94,7 @@ def test_select_top_n_invalid_n(scores: pd.DataFrame) -> None:
 def test_select_top_n_returns_bool(random_scores: pd.DataFrame) -> None:
     ranks = rank_assets(random_scores)
     mask = select_top_n(ranks, n=2)
-    assert mask.dtypes.apply(lambda d: d == bool).all()
+    assert mask.dtypes.apply(lambda d: d == bool).all()  # noqa: E721
 
 
 # ---------------------------------------------------------------------------

@@ -733,7 +733,7 @@ class TestNonCoupling:
     def test_create_session_imports_no_quant_engine(self):
         import src.orchestration.session.session_manager as sm
         import_lines = [
-            l for l in open(sm.__file__).readlines() if l.startswith("import ") or l.startswith("from ")
+            line for line in open(sm.__file__).readlines() if line.startswith("import ") or line.startswith("from ")
         ]
         source = "".join(import_lines)
         for forbidden in ["src.experiments", "src.backtesting", "src.portfolio"]:
@@ -742,7 +742,7 @@ class TestNonCoupling:
     def test_create_session_imports_no_evolution_chain(self):
         import src.orchestration.session.session_manager as sm
         import_lines = [
-            l for l in open(sm.__file__).readlines() if l.startswith("import ") or l.startswith("from ")
+            line for line in open(sm.__file__).readlines() if line.startswith("import ") or line.startswith("from ")
         ]
         source = "".join(import_lines)
         assert "evolution" not in source.lower()

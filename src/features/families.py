@@ -79,7 +79,7 @@ FEATURE_FAMILY_DESCRIPTIONS: dict[str, str] = {
     ),
     "Market Structure": (
         "Systematic risk exposure and cross-asset sensitivity dynamics. "
-        "Rolling beta captures time-varying market linkage; relevant to regime positioning and defensive vs. high-beta rotation."
+        "Rolling beta captures time-varying market linkage; relevant to regime positioning and defensive vs. high-beta rotation."  # noqa: E501
     ),
     "Relative Strength": (
         "Cross-sectional ranking and asset-vs-universe momentum. "

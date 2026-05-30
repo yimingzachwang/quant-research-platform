@@ -305,7 +305,8 @@ The candidate shows higher in-sample Sharpe but severe OOS degradation.
 - IC vs OOS Sharpe: candidate's IC 0.488 coexists with mean OOS Sharpe -0.32
 
 ### Research Progression Summary
-The transition reveals an overfitting pattern — single-asset concentration produces higher in-sample IC but collapses OOS consistency.
+The transition reveals an overfitting pattern — single-asset concentration produces higher in-sample IC
+but collapses OOS consistency.
 
 ### Confidence
 medium - strong IC and validation evidence but universe difference limits comparability.

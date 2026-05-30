@@ -224,7 +224,8 @@ def test_generate_provenance_has_correct_fields(tmp_path: Path) -> None:
     d = _make_artefact_dir(tmp_path)
     paths = generate_experiment_report(d, output_dir=tmp_path / "reports")
     data = json.loads(paths.provenance.read_text())
-    assert set(data.keys()) == {"report_version", "artefact_version", "generated_at", "source_experiment", "config_hash"}
+    expected_keys = {"report_version", "artefact_version", "generated_at", "source_experiment", "config_hash"}
+    assert set(data.keys()) == expected_keys
 
 
 def test_generate_no_html_returns_none(tmp_path: Path) -> None:

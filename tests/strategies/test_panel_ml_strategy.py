@@ -94,7 +94,7 @@ class TestPanelMLStrategyFit:
         tickers = ["SPY", "QQQ"]
         prices = _make_prices(n_dates=5, tickers=tickers)  # far too few rows
         s = _make_strategy(tickers)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             s.fit(prices)
 
     def test_fit_can_be_called_multiple_times(self):

@@ -268,7 +268,7 @@ def test_inline_plain_text_escaped() -> None:
     assert _inline("a < b") == "a &lt; b"
 
 
-def test_inline_code_span() -> None:
+def test_inline_code_span_internal() -> None:
     assert _inline("`foo`") == "<code>foo</code>"
 
 

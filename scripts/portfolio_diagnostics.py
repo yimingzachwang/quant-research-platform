@@ -77,8 +77,10 @@ def main() -> None:
         ("weight_heatmap.png", plot_weight_heatmap(weights, save_path=str(OUTPUT_DIR / "weight_heatmap.png"))),
         ("turnover.png", plot_turnover(weights, save_path=str(OUTPUT_DIR / "turnover.png"))),
         ("concentration.png", plot_weight_concentration(weights, save_path=str(OUTPUT_DIR / "concentration.png"))),
-        ("asset_contribution.png", plot_asset_contribution(returns, weights, save_path=str(OUTPUT_DIR / "asset_contribution.png"))),
-        ("rolling_correlation.png", plot_rolling_correlation(returns, window=ROLLING_CORR_WINDOW, save_path=str(OUTPUT_DIR / "rolling_correlation.png"))),
+        ("asset_contribution.png", plot_asset_contribution(
+            returns, weights, save_path=str(OUTPUT_DIR / "asset_contribution.png"))),
+        ("rolling_correlation.png", plot_rolling_correlation(
+            returns, window=ROLLING_CORR_WINDOW, save_path=str(OUTPUT_DIR / "rolling_correlation.png"))),
     ]
 
     import matplotlib.pyplot as plt

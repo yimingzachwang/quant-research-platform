@@ -532,7 +532,7 @@ class TestRenderToYaml:
 
     def test_missing_base_config_raises(self, tmp_path):
         draft = approve_draft(_make_draft(base_experiment="no_such_exp"))
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             render_to_yaml(draft, configs_base=tmp_path / "configs" / "experiments", dry_run=True)
 
 

@@ -3468,12 +3468,12 @@ def _regime_conditional_behavior(
         table_rows: list[tuple[str, ...]] = []
         for fam in all_fams:
             h = high_ic.get(fam)
-            l = low_ic.get(fam)
-            diff = (h - l) if (isinstance(h, float) and isinstance(l, float)) else None
+            low = low_ic.get(fam)
+            diff = (h - low) if (isinstance(h, float) and isinstance(low, float)) else None
             table_rows.append((
                 fam,
                 f"{h:+.3f}" if isinstance(h, float) else "—",
-                f"{l:+.3f}" if isinstance(l, float) else "—",
+                f"{low:+.3f}" if isinstance(low, float) else "—",
                 f"{diff:+.3f}" if isinstance(diff, float) else "—",
             ))
         lines.append(_pipe_table(
