@@ -1,0 +1,8 @@
+portfolio:
+  constructor: placeholder_long_only_constructor
+  rebalance: daily
+  constraints:
+    max_position_weight: 0.25
+    max_gross_exposure: 1.0
+    max_turnover: 0.25
+    allow_shorting: false

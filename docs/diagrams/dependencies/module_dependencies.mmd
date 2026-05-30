@@ -1,0 +1,32 @@
+flowchart LR
+    data["src.data"]
+    features["src.features"]
+    ml["src.ml"]
+    portfolio["src.portfolio"]
+    strategies["src.strategies"]
+    backtesting["src.backtesting"]
+    validation["src.validation"]
+    experiments["src.experiments"]
+    visualization["src.visualization"]
+    reporting["src.reporting"]
+    scripts["scripts"]
+
+    portfolio --> data
+    ml --> features
+    ml --> validation
+    strategies --> portfolio
+    backtesting --> features
+    portfolio --> backtesting
+    validation --> strategies
+    validation --> backtesting
+    experiments --> portfolio
+    experiments --> strategies
+    experiments --> validation
+    experiments --> visualization
+    reporting --> experiments
+    scripts --> data
+    scripts --> experiments
+    scripts --> strategies
+    scripts --> visualization
+    scripts --> reporting
+

@@ -1,0 +1,157 @@
+# Phase 3A — Signal Geometry Study: Ridge α=0.5 (baseline)
+#
+# Universe: 15 ETFs (expanded from 9 for greater cross-sectional variance)
+# Ridge α: 0.5 (same as canonical baseline — establishes Phase 3A baseline)
+# Signal: top-5 from 15 ETFs (5/15 ≈ 33%, matching original 3/9 ratio)
+#
+# Controlled variable: ONLY α and universe size change across Phase 3A runs.
+# Features, label, validation, portfolio construction are identical.
+#
+# Run with:
+#   python scripts/run_from_config.py \
+#     configs/experiments/signal_geometry/sg_alpha_050.yaml --report --preset canonical
+
+version: "2"
+name: sg_alpha_050
+description: >
+  Phase 3A Signal Geometry Study — Ridge α=0.5 baseline with 15-ETF universe.
+  Equal-weight top-5 signal. Establishes prediction dispersion baseline for
+  regularization sweep comparison.
+tags:
+  - ml
+  - regression
+  - ridge
+  - multi_asset
+  - cross_sectional
+  - panel
+  - phase_3a
+  - signal_geometry
+  - alpha_sweep
+
+universe:
+  tickers:
+    - SPY     # S&P 500 — US large-cap equities
+    - QQQ     # Nasdaq 100 — US technology / growth
+    - IWM     # Russell 2000 — US small-cap equities
+    - XLK     # SPDR Technology — sector
+    - XLF     # SPDR Financials — sector
+    - XLE     # SPDR Energy — sector
+    - XLV     # SPDR Health Care — sector
+    - EFA     # iShares MSCI EAFE — developed international
+    - EEM     # iShares MSCI Emerging Markets — EM equities
+    - TLT     # iShares 20yr Treasury — long-duration rates
+    - HYG     # iShares High Yield Corp Bond — credit risk
+    - TIP     # iShares TIPS Bond — inflation-linked rates
+    - GLD     # SPDR Gold — commodity / safe haven
+    - DBC     # Invesco DB Commodity — broad commodities
+    - VNQ     # Vanguard Real Estate ETF — REITs
+
+date_range:
+  start: "2013-01-01"
+  end: "2024-12-31"
+
+features:
+  ticker: SPY
+  entries:
+    - name: mom_20
+      type: momentum
+      params:
+        lookback: 20
+
+    - name: mom_60
+      type: momentum
+      params:
+        lookback: 60
+
+    - name: mom_252
+      type: momentum
+      params:
+        lookback: 252
+
+    - name: vol_21
+      type: rolling_volatility
+      params:
+        window: 21
+
+    - name: zscore_20
+      type: rolling_zscore
+      params:
+        window: 20
+
+    - name: trend_20
+      type: trend_strength
+      params:
+        window: 20
+
+    - name: mom_5
+      type: momentum
+      params:
+        lookback: 5
+
+    - name: trend_persist_20d
+      type: trend_persistence
+      params:
+        window: 20
+
+    - name: breakout_63d
+      type: breakout_strength
+      params:
+        window: 63
+
+    - name: drawdown_dist_252d
+      type: drawdown_distance
+      params:
+        window: 252
+
+    - name: vol_compress_21_63
+      type: vol_compression
+      params:
+        short_window: 21
+        long_window: 63
+
+    - name: beta_60d
+      type: rolling_beta
+      params:
+        window: 60
+        market_ticker: SPY
+
+    - name: sharpe_mom_252d
+      type: risk_adjusted_momentum
+      params:
+        mom_window: 252
+        vol_window: 63
+
+labels:
+  type: ranking_target
+  params:
+    horizon: 21
+
+model:
+  type: RidgeRegression
+  params:
+    alpha: 0.5
+
+signal:
+  type: top_n
+  params:
+    n: 5
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 48
+    test_months: 12
+    gap_days: 0
+
+portfolio_construction:
+  weighting:
+    scheme: equal_weight
+
+execution:
+  transaction_cost_bps: 5.0
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

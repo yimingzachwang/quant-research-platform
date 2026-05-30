@@ -1,0 +1,18 @@
+backtest:
+  id: default_daily_close_backtest
+  calendar: NYSE
+  rebalance_timing: close_to_close
+  cash_rate_source: placeholder
+  execution:
+    simulator: placeholder_daily_close_execution
+    transaction_cost_bps: 2.0
+    slippage_bps: 1.0
+  evaluation:
+    benchmark: SPY
+    metrics:
+      - total_return
+      - annualized_return
+      - volatility
+      - sharpe
+      - max_drawdown
+      - turnover

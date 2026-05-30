@@ -1,0 +1,7 @@
+experiment_config: configs/experiments/example_daily_momentum.yaml
+tracking:
+  mlflow_enabled: true
+  artifact_root: artifacts
+checks:
+  require_data_validation: true
+  require_cost_model: true

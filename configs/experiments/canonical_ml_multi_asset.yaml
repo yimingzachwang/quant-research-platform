@@ -1,0 +1,173 @@
+# Canonical ML Cross-Sectional Showcase — Phase G-X
+#
+# This config activates genuine multi-asset cross-sectional quantitative research:
+#   - All 10 ETFs receive the same feature set independently computed
+#   - A single pooled Ridge model predicts cross-sectional return ranks
+#   - Top-3 assets by predicted score are held equal-weight
+#
+# This is the G-X-1 activation: the canonical experiment is no longer a
+# single-series SPY forecasting demo.  It is an institutional cross-sectional
+# signal research pipeline.
+#
+# Universe rationale:
+#   SPY/QQQ/IWM  — US equity breadth (large-cap, tech-growth, small-cap)
+#   EEM          — Emerging markets diversification
+#   TLT          — Long-duration rates (risk-off / regime indicator)
+#   GLD          — Commodity / safe haven
+#   XLF/XLK/XLE — Sector breadth (financials, technology, energy)
+#   HYG          — Credit risk / spread regime
+#
+# Run with:
+#   python scripts/run_from_config.py configs/experiments/canonical_ml_multi_asset.yaml --report --preset canonical
+
+version: "2"
+name: canonical_ml_multi_asset
+description: >
+  Cross-sectional quantitative research experiment (Phase G-X). Ridge regression
+  predicts 21-day cross-sectional return ranks across 10 institutional ETFs.
+  Top-3 assets by predicted score are held equal-weight. Features applied
+  independently to each asset; one shared model fitted on pooled observations.
+tags:
+  - ml
+  - regression
+  - ridge
+  - multi_asset
+  - cross_sectional
+  - panel
+  - universe
+  - phase_g
+  - canonical
+
+universe:
+  tickers:
+    - SPY     # S&P 500 — US large-cap equities
+    - QQQ     # Nasdaq 100 — US technology / growth
+    - IWM     # Russell 2000 — US small-cap equities
+    - EEM     # MSCI Emerging Markets — EM equities
+    - TLT     # iShares 20yr Treasury — long-duration rates
+    - GLD     # SPDR Gold — commodity / safe haven
+    - XLF     # SPDR Financials — sector
+    - XLK     # SPDR Technology — sector
+    - XLE     # SPDR Energy — sector
+
+date_range:
+  start: "2013-01-01"
+  end: "2024-12-31"
+
+# --- Feature engineering (same spec applied independently to each asset) ---
+
+features:
+  ticker: SPY  # template ticker — ignored in panel mode; features built for all assets
+  entries:
+    - name: mom_20
+      type: momentum
+      params:
+        lookback: 20
+
+    - name: mom_60
+      type: momentum
+      params:
+        lookback: 60
+
+    - name: mom_252
+      type: momentum
+      params:
+        lookback: 252
+
+    - name: vol_21
+      type: rolling_volatility
+      params:
+        window: 21
+
+    - name: zscore_20
+      type: rolling_zscore
+      params:
+        window: 20
+
+    - name: trend_20
+      type: trend_strength
+      params:
+        window: 20
+
+    - name: mom_5
+      type: momentum
+      params:
+        lookback: 5
+
+    # --- Phase H-1: Economically interpretable feature expansion ---
+
+    - name: trend_persist_20d
+      type: trend_persistence
+      params:
+        window: 20
+
+    - name: breakout_63d
+      type: breakout_strength
+      params:
+        window: 63
+
+    - name: drawdown_dist_252d
+      type: drawdown_distance
+      params:
+        window: 252
+
+    - name: vol_compress_21_63
+      type: vol_compression
+      params:
+        short_window: 21
+        long_window: 63
+
+    - name: beta_60d
+      type: rolling_beta
+      params:
+        window: 60
+        market_ticker: SPY
+
+    - name: sharpe_mom_252d
+      type: risk_adjusted_momentum
+      params:
+        mom_window: 252
+        vol_window: 63
+
+# --- Label construction: cross-sectional return rank within the 10-asset universe ---
+
+labels:
+  type: ranking_target
+  params:
+    horizon: 21
+
+# --- Model ---
+
+model:
+  type: RidgeRegression
+  params:
+    alpha: 0.5
+
+# --- Signal: hold top-3 assets by predicted score, equal weight ---
+
+signal:
+  type: top_n
+  params:
+    n: 3
+
+# --- Walk-forward validation ---
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 48
+    test_months: 12
+    gap_days: 0
+
+# --- Execution ---
+
+execution:
+  transaction_cost_bps: 5.0
+
+# --- Output ---
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

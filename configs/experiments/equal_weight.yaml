@@ -1,0 +1,32 @@
+version: "1"
+name: equal_weight_baseline
+description: "Equal-weight benchmark across core ETFs — Phase D1."
+tags:
+  - baseline
+  - equal_weight
+
+universe:
+  tickers:
+    - SPY
+    - QQQ
+    - IWM
+    - TLT
+    - GLD
+
+date_range:
+  start: "2015-01-01"
+  end: "2024-12-31"
+
+strategy:
+  type: EqualWeight
+  parameters:
+    rebalance_freq: ME
+
+execution:
+  transaction_cost_bps: 2.0
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

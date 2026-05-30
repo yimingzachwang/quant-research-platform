@@ -1,0 +1,13 @@
+feature:
+  id: feat_prices_placeholder_20
+  name: Placeholder price-derived feature
+  owner: quant_analyst
+  data_dependencies:
+    - daily_prices
+  lookback_periods: 20
+  point_in_time: true
+  missing_data_policy: raise
+  output:
+    index: [timestamp, symbol]
+    columns:
+      - placeholder_value

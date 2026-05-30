@@ -1,0 +1,13 @@
+flowchart LR
+    load["Load registered datasets"]
+    align["Align prices / returns"]
+    feature["Compute features or panel features"]
+    strategy["Generate signals / strategy weights"]
+    backtest["Run vectorized backtest\nshift signals or weights"]
+    validate["Optional walk-forward validation"]
+    persist["Persist ExperimentResult\nJSON + parquet + plots"]
+    report["Generate report\nmarkdown/html/provenance"]
+
+    load --> align --> feature --> strategy --> backtest --> validate --> persist --> report
+    backtest --> persist
+

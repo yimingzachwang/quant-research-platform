@@ -1,0 +1,11 @@
+report:
+  id: default_markdown_report
+  format: markdown
+  sections:
+    - executive_summary
+    - configuration
+    - data_assumptions
+    - performance
+    - risk
+    - limitations
+    - next_steps

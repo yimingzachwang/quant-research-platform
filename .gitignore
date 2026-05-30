@@ -1,0 +1,84 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments and local environment files
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VSCode and editor state
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Data science and experiment outputs
+data/raw/*
+data/processed/*
+data/features/*
+data/external/*
+results/*
+experiments/runs/*
+mlruns/
+artifacts/
+*.parquet
+*.feather
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.joblib
+
+# Keep directory placeholders and docs
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/features/.gitkeep
+!data/external/.gitkeep
+!results/README.md
+!results/backtests/.gitkeep
+!results/plots/.gitkeep
+!results/metrics/.gitkeep
+!results/logs/.gitkeep
+
+# Logs and local runtime state
+*.log
+logs/
+.cache/
+.tmp/
+tmp/
+.env
+
+# Claude Code IDE configuration (machine-specific, not for publication)
+.claude/

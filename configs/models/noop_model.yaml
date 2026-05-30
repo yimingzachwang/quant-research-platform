@@ -1,0 +1,14 @@
+model:
+  id: model_noop_placeholder_daily
+  owner: ml_engineer
+  family: noop
+  target: placeholder_forward_return
+  horizon:
+    name: daily
+    periods: 1
+  validation:
+    scheme: walk_forward
+    train_min_periods: 252
+    embargo_periods: 1
+  tracking:
+    log_model: false

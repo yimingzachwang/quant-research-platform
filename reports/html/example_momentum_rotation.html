@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Experiment Report: example_momentum_rotation</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#222;line-height:1.6}
+h1,h2,h3{margin-top:1.5em;border-bottom:1px solid #e8e8e8;padding-bottom:.25em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ccc;padding:8px 12px;text-align:left}
+th{background:#f5f5f5;font-weight:600}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.88em;font-family:monospace}
+img{max-width:100%;height:auto;display:block}
+figure{margin:1.5em 0}
+figcaption{color:#666;font-size:.85em;margin-top:6px}
+hr{border:none;border-top:1px solid #ddd;margin:2em 0}
+ul{padding-left:1.5em}
+li{margin:.3em 0}
+p{margin:.75em 0}
+</style>
+</head>
+<body>
+<h1>Experiment Report: example_momentum_rotation</h1>
+<ul>
+<li><strong>Period:</strong> 2015-01-01 to 2024-12-31</li>
+<li><strong>Universe:</strong> SPY, QQQ, IWM, TLT, GLD, XLF, XLK</li>
+<li><strong>Sharpe ratio:</strong> 0.7063</li>
+</ul>
+<h2>Research Thesis &amp; Methodology</h2>
+<p>
+<strong>Hypothesis:</strong> Assets exhibiting strong trailing 12-month price performance will continue to outperform on a risk-adjusted basis over the subsequent 1–3 months, on average and across varied market regimes.
+</p>
+<p>
+<strong>Economic rationale:</strong> Momentum persistence in cross-sectional asset returns is attributed to three reinforcing mechanisms:
+</p>
+<p>
+1. *Investor underreaction* — Fundamental information is absorbed slowly into prices. Market participants anchor to prior valuations and revise incrementally, creating predictable near-term drift in the direction of the most recent fundamental change.
+2. *Institutional herding* — Risk-budgeting constraints, tracking-error mandates, and performance-chasing capital flows amplify and extend trends beyond what fundamentals alone justify.
+3. *Regime persistence* — Macroeconomic regimes (growth, inflation, risk-off) tend to persist for multiple months, sustaining consistent leadership across equity sectors and cross-asset categories.
+</p>
+<p>
+<strong>Signal construction:</strong> Trailing 252-day total return serves as the momentum signal. The 12-month window is long enough to capture genuine trend persistence while short enough to avoid overlap with the value horizon (24–36 months) at which return reversal dominates. Assets are ranked cross-sectionally each rebalance period; the top 3 of 7 by momentum score are selected and equal-weighted.
+</p>
+<p>
+<strong>Rebalance policy:</strong> Month-End rebalancing balances two competing objectives: capturing regime persistence across several weeks without accumulating excessive transaction-cost drag. Higher-frequency rebalancing would capture incremental alpha but inflate costs; lower-frequency rebalancing would miss month-to-month leadership transitions.
+</p>
+<p>
+<strong>Key risks and limitations:</strong>
+</p>
+<ul>
+<li>*Momentum crashes* — The strategy is acutely exposed to rapid reversals following market dislocations. In crisis-recovery environments (e.g., 2009, 2020), lagging assets frequently outperform leaders by 20–40% within weeks. A long-only momentum strategy has no mechanism to position defensively ahead of such reversals.</li>
+<li>*Regime dependence* — Momentum outperforms in trending, low-volatility environments and underperforms in mean-reverting, high-volatility regimes. Strategy viability in live trading depends partly on the frequency of favourable regimes in the deployment period.</li>
+<li>*Concentration risk* — Holding 3 of 7 assets implies concentrated sector and factor exposure. Adverse selection within the top-N cohort compounds drawdowns during sector-specific dislocations.</li>
+<li>*Look-back sensitivity* — Performance is sensitive to the choice of momentum window. Robustness across alternative windows (e.g., half and double the current lookback) is a necessary validation step not captured by a single-parameter backtest.</li>
+<li>*Transaction costs* — At 5 bps one-way, cost drag compounds materially. Real-world friction for institutional scale or less-liquid instruments may exceed this assumption.</li>
+</ul>
+<p>
+<strong>Scope of this analysis:</strong> This strategy is not presented as a definitive source of live alpha. It is a vehicle for demonstrating a complete, institutionally-rigorous research process: data infrastructure, signal engineering, look-ahead prevention, walk-forward validation, and failure mode analysis. *The methodology is the product.*
+</p>
+<h2>Data Infrastructure</h2>
+<p>
+<strong>Data source:</strong> Yahoo Finance daily OHLCV data, ingested via <code>yfinance</code> and persisted to local Parquet files for reproducibility. All prices are adjusted closing prices.
+</p>
+<p>
+<strong>Alignment policy:</strong> Inner join across all universe constituents — only trading days on which every asset has a valid price are retained. This eliminates NaN-driven look-ahead in cross-sectional ranking.
+</p>
+<p>
+<strong>Missing value policy:</strong> Forward-fill up to a configurable limit (default: 5 trading days) for isolated gaps caused by exchange holidays or data vendor gaps. Gaps exceeding the limit remain NaN and are surfaced in diagnostics rather than silently filled. Over-cleaning (excessive interpolation) introduces bias by smoothing market structure.
+</p>
+<p>
+<strong>Coverage:</strong> 2516 trading days from 2015-01-02 to 2024-12-31 across 7 assets.
+</p>
+<table><thead>
+<tr><th>Asset</th><th>NaN Count</th><th>Ann. Return</th><th>Ann. Volatility</th></tr>
+</tr></thead><tbody>
+<tr><td>SPY</td><td>0</td><td>12.1%</td><td>17.7%</td></tr>
+<tr><td>QQQ</td><td>0</td><td>18.5%</td><td>21.8%</td></tr>
+<tr><td>IWM</td><td>0</td><td>8.8%</td><td>22.5%</td></tr>
+<tr><td>TLT</td><td>0</td><td>-2.6%</td><td>15.3%</td></tr>
+<tr><td>GLD</td><td>0</td><td>8.5%</td><td>14.1%</td></tr>
+<tr><td>XLF</td><td>0</td><td>11.3%</td><td>22.3%</td></tr>
+<tr><td>XLK</td><td>0</td><td>20.1%</td><td>23.3%</td></tr>
+</tbody></table>
+<h2>Backtesting Methodology</h2>
+<p>
+All backtests use a strictly vectorized, look-ahead-safe execution framework. The critical invariant: no information from period *t* enters the position that earns the return of period *t*.
+</p>
+<p>
+<strong>Timing convention:</strong>
+</p>
+<table><thead>
+<tr><th>Step</th><th>Action</th><th>When</th></tr>
+</tr></thead><tbody>
+<tr><td>Signal computed</td><td>Momentum scores calculated from all prices ≤ day *t*</td><td>Close of day *t*</td></tr>
+<tr><td>Position entered</td><td>Computed weights applied to portfolio</td><td>Open of day *t+1*</td></tr>
+<tr><td>Return realized</td><td>Portfolio return earned</td><td>Close of day *t+1*</td></tr>
+</tbody></table>
+<p>
+<strong>Implementation:</strong> <code>applied_weights = weights.shift(1)</code>. The strategy never observes the return it will receive when deciding to trade. The first row of every backtest has a zero position — the portfolio is flat until the first valid signal propagates through the one-day lag.
+ Positions are flat for the first 252 trading days during momentum warm-up (insufficient price history for ranking).
+</p>
+<p>
+<strong>Portfolio return computation per period:</strong>
+</p>
+<p>
+<code>`</code>
+gross_return_t  = sum_i( weight_{i,t-1} * asset_return_{i,t} )
+transaction_cost_t = sum_i( |weight_{i,t} - weight_{i,t-1}| ) * (5 / 10_000)
+net_return_t    = gross_return_t - transaction_cost_t
+equity_curve_t  = product_{s&lt;=t}( 1 + net_return_s ),  anchored at 1.0
+drawdown_t      = ( equity_t - max_{s&lt;=t} equity_s ) / max_{s&lt;=t} equity_s
+<code>`</code>
+</p>
+<p>
+<strong>Transaction cost model:</strong> One-way costs of 5 bps are applied to each unit of absolute portfolio weight change. Cost is incurred only on actual weight changes — during forward-fill periods between rebalances, weights are unchanged and no cost is deducted.
+</p>
+<p>
+<strong>Turnover definition:</strong> Daily turnover = sum of absolute weight changes across all assets per period. Monthly average turnover of X% indicates X% of portfolio value was rotated per rebalance event (one-way).
+</p>
+<h2>Portfolio Construction Process</h2>
+<p>
+<strong>Signal-to-portfolio pipeline:</strong>
+</p>
+<p>
+<code>`</code>
+prices[t-lookback : t]
+  → trailing_return_i = price[t] / price[t-lookback] - 1   (per asset)
+  → cross_sectional_rank_i  (higher momentum = higher rank)
+  → top_3_mask  (boolean selection)
+  → equal_weight = 1/3 per selected asset
+  → forward_fill to daily index
+  → shift(1)  [look-ahead prevention]
+  → portfolio_weights applied in backtest engine
+<code>`</code>
+</p>
+<p>
+<strong>Rebalance frequency:</strong> month-end. <strong>Selection size:</strong> top 3 by trailing 252-day return.
+</p>
+<p>
+<strong>Rebalance history:</strong> 48 rebalance events over the backtest period.
+</p>
+<p>
+<strong>Recent rebalances (most recent last):</strong>
+</p>
+<table><thead>
+<tr><th>Date</th><th>Holdings</th><th>Entered</th><th>Exited</th></tr>
+</tr></thead><tbody>
+<tr><td>2023-07-03</td><td>QQQ, SPY, XLK</td><td>SPY</td><td>GLD</td></tr>
+<tr><td>2023-11-01</td><td>GLD, QQQ, XLK</td><td>GLD</td><td>SPY</td></tr>
+<tr><td>2024-01-03</td><td>QQQ, SPY, XLK</td><td>SPY</td><td>GLD</td></tr>
+<tr><td>2024-04-02</td><td>QQQ, XLF, XLK</td><td>XLF</td><td>SPY</td></tr>
+<tr><td>2024-08-01</td><td>GLD, QQQ, XLF</td><td>GLD</td><td>XLK</td></tr>
+<tr><td>2024-10-01</td><td>GLD, QQQ, XLK</td><td>XLK</td><td>XLF</td></tr>
+<tr><td>2024-11-01</td><td>GLD, QQQ, XLF</td><td>XLF</td><td>XLK</td></tr>
+<tr><td>2024-12-03</td><td>IWM, SPY, XLF</td><td>IWM, SPY</td><td>GLD, QQQ</td></tr>
+</tbody></table>
+<p>
+*Date shown is the position-entry date (signal computed one trading day prior per the shift(1) convention).*
+</p>
+<h2>Performance Metrics</h2>
+<table><thead>
+<tr><th>Metric</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Annualized Return</td><td>0.1013</td></tr>
+<tr><td>Annualized Volatility</td><td>0.1532</td></tr>
+<tr><td>Sharpe Ratio</td><td>0.7063</td></tr>
+<tr><td>Max Drawdown</td><td>-0.2748</td></tr>
+<tr><td>Calmar Ratio</td><td>0.3685</td></tr>
+<tr><td>Hit Rate</td><td>0.4921</td></tr>
+</tbody></table>
+<h2>Walk-Forward Validation</h2>
+<p>
+<strong>Why chronological walk-forward validation?</strong>
+</p>
+<p>
+Financial time series are non-stationary. Random k-fold cross-validation — standard in i.i.d. machine learning — introduces look-ahead bias when applied to sequential data: a test fold drawn from 2018 can &quot;learn from&quot; training data from 2020 if folds are randomly assigned. This fundamentally overstates out-of-sample performance.
+</p>
+<p>
+Chronological rolling validation ensures the model is always tested on data it has never seen in forward time — the only valid simulation of live deployment. Each test window immediately follows its training window, with no overlap and no data from the future entering the training set.
+</p>
+<p>
+<strong>Validation type:</strong> <code>rolling</code>
+</p>
+<table><thead>
+<tr><th>Parameter</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>gap_days</td><td>0</td></tr>
+<tr><td>step_months</td><td>12</td></tr>
+<tr><td>test_months</td><td>12</td></tr>
+<tr><td>train_months</td><td>36</td></tr>
+</tbody></table>
+<p>
+<strong>Split timeline:</strong>
+</p>
+<table><thead>
+<tr><th>Split</th><th>Train Start</th><th>Train End</th><th>Test Start</th><th>Test End</th><th>OOS Sharpe</th><th>OOS Return</th><th>OOS Max DD</th></tr>
+</tr></thead><tbody>
+<tr><td>0</td><td>2015-01-02</td><td>2017-12-29</td><td>2018-01-02</td><td>2018-12-31</td><td>-0.21</td><td>-6.4%</td><td>-23.2%</td></tr>
+<tr><td>1</td><td>2016-01-04</td><td>2018-12-31</td><td>2019-01-02</td><td>2019-12-31</td><td>1.88</td><td>23.1%</td><td>-9.2%</td></tr>
+<tr><td>2</td><td>2017-01-03</td><td>2019-12-31</td><td>2020-01-02</td><td>2020-12-31</td><td>1.63</td><td>36.5%</td><td>-15.7%</td></tr>
+<tr><td>3</td><td>2018-01-02</td><td>2020-12-31</td><td>2021-01-04</td><td>2021-12-31</td><td>0.99</td><td>16.9%</td><td>-8.2%</td></tr>
+<tr><td>4</td><td>2019-01-02</td><td>2021-12-31</td><td>2022-01-03</td><td>2022-12-30</td><td>-0.77</td><td>-17.9%</td><td>-26.3%</td></tr>
+<tr><td>5</td><td>2020-01-02</td><td>2022-12-30</td><td>2023-01-03</td><td>2023-12-29</td><td>1.27</td><td>16.9%</td><td>-10.4%</td></tr>
+</tbody></table>
+<p>
+Out-of-sample equity curves are in the Figures section. Per-split stability metrics are in the Diagnostics section.
+</p>
+<h2>Failure Analysis</h2>
+<p>
+<strong>Known failure modes for momentum rotation strategies:</strong>
+</p>
+<ul>
+<li>*Momentum crashes* — The most acute risk. When crowded momentum positions unwind simultaneously (e.g., following a flight-to-quality shock), the strategy holds recent winners that become the hardest-hit assets. The 2009 recovery and COVID snap-back (March–August 2020) are canonical examples.</li>
+<li>*Bond/equity regime transitions* — In risk-off episodes, defensive assets (TLT, GLD) often lead. The strategy may hold these correctly, but the transition itself can cause a drawdown before the new leaders establish their momentum signal.</li>
+<li>*Turnover spikes at regime shifts* — Rapid leadership rotation increases turnover and transaction-cost drag precisely when alpha is weakest. Cost erosion compounds the drawdown.</li>
+<li>*Non-stationarity* — The momentum premium is not constant over time. Periods of elevated market volatility, compressed return dispersion, or mean-reverting micro-structure can cause the signal to be uninformative or counter-productive.</li>
+</ul>
+<p>
+<strong>Identified drawdown windows (&gt; 5% peak-to-trough):</strong>
+</p>
+<table><thead>
+<tr><th>Drawdown Start</th><th>Trough</th><th>Recovery</th><th>Max DD</th><th>Duration</th></tr>
+</tr></thead><tbody>
+<tr><td>2022-02-10</td><td>2022-09-27</td><td>2024-01-19</td><td>-27.5%</td><td>708d</td></tr>
+<tr><td>2018-10-10</td><td>2018-12-24</td><td>2019-07-24</td><td>-23.2%</td><td>287d</td></tr>
+<tr><td>2020-03-09</td><td>2020-03-18</td><td>2020-04-06</td><td>-15.7%</td><td>28d</td></tr>
+</tbody></table>
+<p>
+<strong>Worst out-of-sample split:</strong>
+</p>
+<ul>
+<li>Split 4 — test period 2022-01-03 to 2022-12-30</li>
+<li>Sharpe: -0.77</li>
+<li>Return: -17.9%</li>
+<li>Max DD: -26.3%</li>
+</ul>
+<p>
+<strong>Overall risk assessment:</strong>
+</p>
+<ul>
+<li>Full-period max drawdown of -27.5% represents a moderate peak-to-trough loss. Investors must be positioned to hold through such episodes without forced liquidation.</li>
+<li>Full-period Sharpe of 0.71 represents adequate risk-adjusted performance. Walk-forward validation assesses whether this is structural or the result of in-sample fitting.</li>
+</ul>
+<h2>Diagnostics Appendix</h2>
+<p>
+This appendix presents detailed diagnostic tables for in-depth analysis. The Walk-Forward Stability table surfaces per-split performance variance; consistent Sharpe ratios across splits indicate a regime-independent signal, while high variance suggests the strategy is sensitive to specific market conditions encountered in individual periods.
+</p>
+<h3>Walk-Forward Stability</h3>
+<table><thead>
+<tr><th>Metric</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Splits</td><td>6</td></tr>
+<tr><td>Mean Sharpe</td><td>0.7988</td></tr>
+<tr><td>Std Sharpe</td><td>1.0596</td></tr>
+<tr><td>Positive-Sharpe rate</td><td>66.7%</td></tr>
+<tr><td>Mean annualised return</td><td>11.53%</td></tr>
+<tr><td>Mean max drawdown</td><td>-15.48%</td></tr>
+<tr><td>Worst max drawdown</td><td>-26.31%</td></tr>
+</tbody></table>
+<p>
+<strong>Per-split results:</strong>
+</p>
+<table><thead>
+<tr><th>Split</th><th>Test Start</th><th>Test End</th><th>Sharpe</th><th>Return</th><th>Max DD</th></tr>
+</tr></thead><tbody>
+<tr><td>0</td><td>2018-01-02</td><td>2018-12-31</td><td>-0.2066</td><td>-6.39%</td><td>-23.21%</td></tr>
+<tr><td>1</td><td>2019-01-02</td><td>2019-12-31</td><td>1.8833</td><td>23.15%</td><td>-9.16%</td></tr>
+<tr><td>2</td><td>2020-01-02</td><td>2020-12-31</td><td>1.6324</td><td>36.54%</td><td>-15.68%</td></tr>
+<tr><td>3</td><td>2021-01-04</td><td>2021-12-31</td><td>0.9891</td><td>16.88%</td><td>-8.16%</td></tr>
+<tr><td>4</td><td>2022-01-03</td><td>2022-12-30</td><td>-0.7743</td><td>-17.89%</td><td>-26.31%</td></tr>
+<tr><td>5</td><td>2023-01-03</td><td>2023-12-29</td><td>1.2691</td><td>16.90%</td><td>-10.38%</td></tr>
+</tbody></table>
+<h2>Metadata</h2>
+<table><thead>
+<tr><th>Field</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Experiment</td><td><code>example_momentum_rotation</code></td></tr>
+<tr><td>Strategy</td><td><code>MomentumRotation(lookback=252,top_n=3,freq=ME)</code></td></tr>
+<tr><td>Created</td><td>2026-05-24T14:32:50.919049+00:00</td></tr>
+</tbody></table>
+<h2>Configuration</h2>
+<p>
+<strong>Universe:</strong> SPY, QQQ, IWM, TLT, GLD, XLF, XLK
+</p>
+<p>
+<strong>Date range:</strong> 2015-01-01 to 2024-12-31
+</p>
+<p>
+<strong>Strategy type:</strong> <code>MomentumRotation</code>
+</p>
+<table><thead>
+<tr><th>Parameter</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>lookback</td><td>252</td></tr>
+<tr><td>rebalance_freq</td><td>ME</td></tr>
+<tr><td>top_n</td><td>3</td></tr>
+</tbody></table>
+<p>
+<strong>Transaction cost:</strong> 5.0 bps
+<strong>Validation:</strong> <code>rolling</code>
+</p>
+<h2>Figures</h2>
+<h3>Allocation History</h3>
+<figure><img src="../figures/example_momentum_rotation/allocation_history.png" alt="Allocation History"><figcaption>Allocation History</figcaption></figure>
+<h3>Equity And Drawdown</h3>
+<figure><img src="../figures/example_momentum_rotation/equity_and_drawdown.png" alt="Equity And Drawdown"><figcaption>Equity And Drawdown</figcaption></figure>
+<h3>Portfolio Turnover</h3>
+<figure><img src="../figures/example_momentum_rotation/portfolio_turnover.png" alt="Portfolio Turnover"><figcaption>Portfolio Turnover</figcaption></figure>
+<h3>Split Sharpes</h3>
+<figure><img src="../figures/example_momentum_rotation/split_sharpes.png" alt="Split Sharpes"><figcaption>Split Sharpes</figcaption></figure>
+<h3>Walk Forward Stitched</h3>
+<figure><img src="../figures/example_momentum_rotation/walk_forward_stitched.png" alt="Walk Forward Stitched"><figcaption>Walk Forward Stitched</figcaption></figure>
+<hr>
+<p>
+Report version: 1
+Generated: 2026-05-25T12:40:31.741756+00:00
+Source experiment: example_momentum_rotation
+</p>
+</body>
+</html>

@@ -1,0 +1,31 @@
+flowchart TD
+    profile["configs/data/daily_prices.yaml\nDatasetProfileConfig"]
+    canonical["configs/data/data_agent_v1.yaml\nDataAgentV1Config"]
+    universe["configs/universes/core_etfs.yaml\nUniverse"]
+    expand["expand_profile_data_requests\none DataRequest per symbol"]
+    hash["hash_request\nschema + symbol + source + dates"]
+    registry_check["DatasetRegistry.exists"]
+    skip["SKIP\nload existing manifest"]
+    download["Downloader\nyfinance or FRED"]
+    standardize["Standardizer\nOHLCV or macro"]
+    validate["DatasetValidator\nValidationReport"]
+    storage["DataStorage\nraw + processed parquet"]
+    manifest["DatasetManifest"]
+    registry["DatasetRegistry.register\nJSON registry"]
+    load["load_dataset / DatasetQuery\nread registered parquet"]
+
+    profile --> canonical
+    profile --> universe
+    canonical --> expand
+    universe --> expand
+    expand --> hash
+    hash --> registry_check
+    registry_check -->|exists| skip
+    registry_check -->|missing| download
+    download --> standardize
+    standardize --> validate
+    validate --> storage
+    storage --> manifest
+    manifest --> registry
+    registry --> load
+

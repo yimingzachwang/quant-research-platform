@@ -1,0 +1,23 @@
+flowchart TD
+    computed["Computed artifacts\nbacktests, weights, metrics, validation results"]
+    backtest["backtest_plots"]
+    portfolio["portfolio_plots"]
+    comparison["comparison_plots"]
+    validation["validation_plots"]
+    distribution["distribution_plots"]
+    signal["signal_plots"]
+    diagnostics["diagnostics"]
+    style["styles / utils"]
+    figures["matplotlib Figures / PNGs"]
+    reports["D2 reports consume saved PNGs"]
+
+    computed --> backtest --> figures
+    computed --> portfolio --> figures
+    computed --> comparison --> figures
+    computed --> validation --> figures
+    computed --> distribution --> figures
+    computed --> signal --> figures
+    computed --> diagnostics
+    style --> figures
+    figures --> reports
+

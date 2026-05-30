@@ -1,0 +1,5 @@
+mlflow:
+  enabled: true
+  experiment_name: quant_etf_research
+  tracking_uri: file:./mlruns
+  artifact_location: artifacts

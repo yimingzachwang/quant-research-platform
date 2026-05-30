@@ -1,0 +1,11 @@
+risk:
+  model: basic_placeholder_risk
+  checks:
+    - gross_exposure
+    - position_concentration
+    - drawdown
+    - turnover
+  limits:
+    max_gross_exposure: 1.0
+    max_position_weight: 0.25
+    max_drawdown_review_threshold: -0.15

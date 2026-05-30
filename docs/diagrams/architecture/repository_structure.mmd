@@ -1,0 +1,23 @@
+flowchart LR
+    root["quant etf research"]
+    root --> configs["configs\nYAML profiles and manifests"]
+    root --> data["data\nraw, processed, features, external registry"]
+    root --> src["src\npackage code"]
+    root --> tests["tests\npytest coverage"]
+    root --> scripts["scripts\nthin entrypoints"]
+    root --> docs["docs\narchitecture and context"]
+    root --> results["results\ngenerated artifacts"]
+    root --> agents["agents\nagent role docs"]
+    root --> skills["skills\nagent task guides"]
+
+    src --> src_data["data"]
+    src --> src_features["features"]
+    src --> src_portfolio["portfolio"]
+    src --> src_backtesting["backtesting"]
+    src --> src_validation["validation"]
+    src --> src_ml["ml"]
+    src --> src_exp["experiments"]
+    src --> src_viz["visualization"]
+    src --> src_reporting["reporting"]
+    src --> src_placeholders["risk / execution / evaluation / models / signals placeholders"]
+

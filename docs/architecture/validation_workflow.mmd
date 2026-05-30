@@ -1,0 +1,36 @@
+flowchart TB
+    %% Primary idea: chronological isolation in walk-forward validation.
+
+    subgraph SplitDesign["Split design"]
+        direction LR
+        Prices["price panel"]
+        Splitter["rolling / expanding\nTimeSplit generator"]
+        Prices --> Splitter
+    end
+
+    subgraph PerSplit["Per-split evaluation"]
+        direction TB
+        Train["train window\ntrain_start:train_end"]
+        Visible["visible prices\nthrough test_end only"]
+        Fit["optional strategy.fit()"]
+        Weights["generate_weights()"]
+        Backtest["run_strategy()\nweights.shift(1)"]
+        TestOnly["test-window slice only"]
+        Train --> Fit --> Weights
+        Visible --> Weights --> Backtest --> TestOnly
+    end
+
+    subgraph Outputs["Validation outputs"]
+        direction LR
+        SplitMetrics["split metrics"]
+        SplitResult["SplitResult"]
+        WFResult["WalkForwardResult"]
+        SplitMetrics --> SplitResult --> WFResult
+    end
+
+    Splitter --> Train
+    Splitter --> Visible
+    TestOnly --> SplitMetrics
+
+    classDef layer fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    class Prices,Splitter,Train,Visible,Fit,Weights,Backtest,TestOnly,SplitMetrics,SplitResult,WFResult layer;

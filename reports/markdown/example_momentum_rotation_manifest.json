@@ -1,0 +1,64 @@
+{
+  "experiment_name": "example_momentum_rotation",
+  "experiment_type": "v1_strategy",
+  "strategy_type": "MomentumRotation",
+  "report_spec": "CANONICAL_SHOWCASE",
+  "generated_at": "2026-05-25T12:40:31.741756+00:00",
+  "report_version": "1",
+  "artefact_version": "1",
+  "tags": [
+    "momentum",
+    "etf",
+    "rotation",
+    "example"
+  ],
+  "files": {
+    "markdown": "example_momentum_rotation.md",
+    "provenance": "example_momentum_rotation_provenance.json",
+    "html": "../html/example_momentum_rotation.html"
+  },
+  "figures": [
+    "../figures/example_momentum_rotation/allocation_history.png",
+    "../figures/example_momentum_rotation/equity_and_drawdown.png",
+    "../figures/example_momentum_rotation/portfolio_turnover.png",
+    "../figures/example_momentum_rotation/split_sharpes.png",
+    "../figures/example_momentum_rotation/walk_forward_stitched.png"
+  ],
+  "metrics_summary": {
+    "sharpe_ratio": 0.706342,
+    "annualized_return": 0.101252,
+    "annualized_volatility": 0.15322,
+    "max_drawdown": -0.274801,
+    "calmar_ratio": 0.368457,
+    "hit_rate": 0.492051
+  },
+  "sections_rendered": [
+    "Research Thesis & Methodology",
+    "Data Infrastructure",
+    "Backtesting Methodology",
+    "Portfolio Construction Process",
+    "Performance Metrics",
+    "Walk-Forward Validation",
+    "Failure Analysis",
+    "Diagnostics Appendix",
+    "Metadata",
+    "Configuration",
+    "Figures"
+  ],
+  "validation_verdict": "pass",
+  "plot_index": [],
+  "has_ml": false,
+  "has_validation": true,
+  "has_diagnostics": true,
+  "has_research_artefacts": true,
+  "has_ml_model_diagnostics": false,
+  "has_wf_equity_curves": false,
+  "has_rolling_sharpe": false,
+  "has_train_vs_test": false,
+  "has_ml_plots": false,
+  "has_feature_summary": false,
+  "has_feature_registry": false,
+  "has_feature_correlations": false,
+  "has_alignment_diagnostics": false,
+  "has_feature_engineering": false
+}

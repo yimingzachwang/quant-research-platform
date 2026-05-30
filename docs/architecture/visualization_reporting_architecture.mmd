@@ -1,0 +1,46 @@
+flowchart LR
+    %% Primary idea: visualisation and reporting are read-only consumers.
+
+    subgraph Inputs["Saved and computed inputs"]
+        direction TB
+        Computed["computed results"]
+        Artefacts["experiment artefacts"]
+        Diagnostics["diagnostics sidecars"]
+    end
+
+    subgraph Visualisation["Visualisation layer"]
+        direction TB
+        PlotFns["plotting functions"]
+        Figures["saved figures"]
+        PlotFns --> Figures
+    end
+
+    subgraph Reporting["Reporting layer"]
+        direction TB
+        Spec["ResearchReportSpec"]
+        Builder["report_builder"]
+        Renderer["render_report()"]
+        Spec --> Builder --> Renderer
+    end
+
+    subgraph Outputs["Report outputs"]
+        direction TB
+        Markdown["Markdown"]
+        HTML["HTML"]
+        Provenance["provenance JSON"]
+        Manifest["report manifest JSON"]
+    end
+
+    Computed --> PlotFns
+    Figures --> Builder
+    Artefacts --> Builder
+    Diagnostics --> Builder
+    Renderer --> Markdown
+    Renderer --> HTML
+    Builder --> Provenance
+    Builder --> Manifest
+
+    classDef layer fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    classDef output fill:#eef7f0,stroke:#2d6a4f,stroke-width:1.4px,color:#172033;
+    class Computed,Artefacts,Diagnostics,PlotFns,Figures,Spec,Builder,Renderer layer;
+    class Markdown,HTML,Provenance,Manifest output;

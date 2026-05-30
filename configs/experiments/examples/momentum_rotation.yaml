@@ -1,0 +1,54 @@
+# Canonical example: Momentum Rotation (version "1" — strategy-based)
+#
+# Rotates into the top-N ETFs by trailing 12-month momentum.
+# Rebalances monthly. Walk-forward validated with rolling 3y train / 1y test.
+#
+# Run with:
+#   python scripts/run_from_config.py configs/experiments/examples/momentum_rotation.yaml
+#   python scripts/run_from_config.py configs/experiments/examples/momentum_rotation.yaml --report
+
+version: "1"
+name: example_momentum_rotation
+description: "Momentum rotation across 7 core ETFs — canonical example."
+tags:
+  - momentum
+  - etf
+  - rotation
+  - example
+
+universe:
+  tickers:
+    - SPY    # US large-cap equities
+    - QQQ    # US tech/growth
+    - IWM    # US small-cap
+    - TLT    # Long-term US Treasuries
+    - GLD    # Gold
+    - XLF    # Financial sector
+    - XLK    # Technology sector
+
+date_range:
+  start: "2015-01-01"
+  end: "2024-12-31"
+
+strategy:
+  type: MomentumRotation
+  parameters:
+    lookback: 252      # 12-month trailing momentum window (trading days)
+    top_n: 3           # Number of assets to hold at any time
+    rebalance_freq: ME  # Monthly rebalance (month-end)
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 36   # 3-year training window
+    test_months: 12    # 1-year test window
+    gap_days: 0
+
+execution:
+  transaction_cost_bps: 5.0  # 5 bps one-way (realistic ETF estimate)
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

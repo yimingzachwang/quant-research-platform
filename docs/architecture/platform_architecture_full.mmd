@@ -1,0 +1,62 @@
+flowchart TB
+    %% Primary idea: layered platform architecture.
+
+    subgraph ConfigLayer["Configuration and intent"]
+        direction LR
+        Configs["configs/*.yaml"]
+        LLM["src/llm\nexperimental"]
+        LLM -. typed configs / requests .-> Configs
+    end
+
+    subgraph DataLayer["Data infrastructure"]
+        direction LR
+        Data["src/data"]
+        Registry["manifests + registry"]
+        Loader["DatasetQuery loading"]
+        Data --> Registry --> Loader
+    end
+
+    subgraph TransformLayer["Research transformations"]
+        direction LR
+        Cleaning["src/cleaning"]
+        Features["src/features"]
+        ML["src/ml"]
+        Cleaning --> Features --> ML
+    end
+
+    subgraph ResearchLayer["Strategy and portfolio research"]
+        direction LR
+        Strategies["src/strategies"]
+        Portfolio["src/portfolio"]
+        Backtesting["src/backtesting"]
+        Strategies --> Portfolio --> Backtesting
+    end
+
+    subgraph ValidationLayer["Validation and reproducibility"]
+        direction LR
+        Validation["src/validation"]
+        Experiments["src/experiments"]
+        Validation --> Experiments
+    end
+
+    subgraph PresentationLayer["Presentation"]
+        direction LR
+        Visualisation["src/visualization"]
+        Reporting["src/reporting"]
+        Reports["markdown / HTML / PDF / DOCX"]
+        Visualisation --> Reporting --> Reports
+    end
+
+    Configs --> Data
+    Loader --> Cleaning
+    ML --> Strategies
+    Features --> Strategies
+    Backtesting --> Validation
+    Backtesting --> Experiments
+    Experiments --> Visualisation
+    Experiments --> Reporting
+
+    classDef implemented fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    classDef experimental fill:#fff7df,stroke:#a06b00,stroke-width:1.4px,color:#172033;
+    class Configs,Data,Registry,Loader,Cleaning,Features,ML,Strategies,Portfolio,Backtesting,Validation,Experiments,Visualisation,Reporting,Reports implemented;
+    class LLM experimental;

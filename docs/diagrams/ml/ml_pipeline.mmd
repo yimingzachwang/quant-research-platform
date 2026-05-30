@@ -1,0 +1,23 @@
+flowchart TD
+    prices["Price data"]
+    feature_funcs["Feature callables\nsrc/features"]
+    matrix["build_feature_matrix"]
+    labels["src/ml/labels\nshift(-horizon) labels"]
+    align["align_features_and_labels\ndrop NaN rows"]
+    dataset["SupervisedDataset\nX, y, horizon, feature_names"]
+    splits["TimeSplit sequence\nfrom src.validation"]
+    model["BaseMLModel\nfit / predict"]
+    preds["PredictionSeries"]
+    check["validate_prediction_index_alignment"]
+    wf["run_walk_forward_predictions"]
+    concat["concatenate_predictions\nreject overlap"]
+
+    prices --> feature_funcs --> matrix
+    prices --> labels
+    matrix --> align
+    labels --> align --> dataset
+    dataset --> model --> preds --> check
+    dataset --> wf
+    splits --> wf
+    model --> wf --> concat
+

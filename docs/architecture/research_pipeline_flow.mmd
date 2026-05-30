@@ -1,0 +1,43 @@
+flowchart LR
+    %% Primary idea: end-to-end research lifecycle.
+
+    subgraph Ingestion["Data and registry"]
+        direction LR
+        Market["market data"]
+        Registry["registry + parquet"]
+        Market --> Registry
+    end
+
+    subgraph Construction["Research construction"]
+        direction LR
+        Features["features"]
+        Labels["labels\nshift(-horizon)"]
+        Dataset["SupervisedDataset"]
+        Predictions["PredictionSeries"]
+        Signals["signals / weights"]
+        Features --> Labels --> Dataset --> Predictions --> Signals
+    end
+
+    subgraph Evaluation["Evaluation"]
+        direction LR
+        Backtest["backtest\nshift(1)"]
+        Validation["walk-forward\nvalidation"]
+        Diagnostics["diagnostics"]
+        Backtest --> Validation --> Diagnostics
+    end
+
+    subgraph Presentation["Presentation and persistence"]
+        direction LR
+        Figures["figures"]
+        Reports["reports"]
+        Artefacts["artefacts"]
+        Figures --> Reports --> Artefacts
+    end
+
+    Registry --> Features
+    Features --> Signals
+    Signals --> Backtest
+    Diagnostics --> Figures
+
+    classDef layer fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    class Market,Registry,Features,Labels,Dataset,Predictions,Signals,Backtest,Validation,Diagnostics,Figures,Reports,Artefacts layer;

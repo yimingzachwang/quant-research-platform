@@ -1,0 +1,12 @@
+features:
+  pipeline_id: placeholder_momentum_features
+  owner: quant_analyst
+  point_in_time: true
+  transforms:
+    - id: feat_prices_placeholder_20
+      type: placeholder
+      lookback_periods: 20
+      inputs:
+        - adjusted_close
+      outputs:
+        - placeholder_value

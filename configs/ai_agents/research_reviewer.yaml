@@ -1,0 +1,11 @@
+name: research_reviewer
+description: Placeholder AI agent for experiment summaries and diagnostics.
+allowed_tasks:
+  - summarize_experiment
+  - identify_anomalies
+  - propose_follow_up_tests
+  - draft_research_report
+inputs:
+  require_structured_artifacts: true
+  allow_notebook_context: false
+

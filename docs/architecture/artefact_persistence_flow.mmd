@@ -1,0 +1,43 @@
+flowchart LR
+    %% Primary idea: experiment outputs become persisted artefacts, which are
+    %% consumed by reporting without recomputation.
+
+    subgraph Run["Experiment execution"]
+        direction TB
+        ExperimentRun["ExperimentRun"]
+        SaveRun["save_run()"]
+        ExperimentRun --> SaveRun
+    end
+
+    subgraph Artefacts["Persisted artefacts"]
+        direction TB
+        Metadata["metadata.json"]
+        Metrics["metrics.json"]
+        Parquet["parquet series\nreturns / equity / weights"]
+        Plots["plots/*.png"]
+        Diagnostics["diagnostics/*.json"]
+        MLProv["ml_provenance.json\n(v2 ML only)"]
+    end
+
+    subgraph Reporting["Reporting layer"]
+        direction TB
+        Builder["load_experiment_artefacts()\n+ generate_experiment_report()"]
+    end
+
+    subgraph Outputs["Report outputs"]
+        direction TB
+        MarkdownHTML["Markdown / HTML"]
+        Provenance["provenance JSON"]
+        Manifest["frontend manifest JSON"]
+    end
+
+    SaveRun --> Artefacts
+    Artefacts --> Builder
+    Builder --> MarkdownHTML
+    Builder --> Provenance
+    Builder --> Manifest
+
+    classDef layer fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    classDef output fill:#eef7f0,stroke:#2d6a4f,stroke-width:1.4px,color:#172033;
+    class ExperimentRun,SaveRun,Metadata,Metrics,Parquet,Plots,Diagnostics,MLProv,Builder layer;
+    class MarkdownHTML,Provenance,Manifest output;

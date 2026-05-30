@@ -1,0 +1,23 @@
+flowchart TD
+    cfg["Experiment YAML/JSON"]
+    load["load_config"]
+    validate["validate_config"]
+    normalize["normalize_config"]
+    factory["factory\nstrategy, universe spec, validation config, ExperimentSpec"]
+    data["load_universe + align_prices"]
+    run["run_strategy"]
+    wf["optional walk-forward validation"]
+    result["ExperimentResult"]
+    plots["plot generation"]
+    save["save_run / save_experiment\nJSON + parquet + plots"]
+    rawcfg["raw_config + normalized_config"]
+    registry["ExperimentRegistry"]
+    report["generate_experiment_report\nmarkdown/html/provenance"]
+
+    cfg --> load --> validate --> normalize --> factory --> data --> run --> result --> save
+    factory --> wf --> result
+    run --> plots --> save
+    save --> rawcfg
+    save --> registry
+    save --> report
+

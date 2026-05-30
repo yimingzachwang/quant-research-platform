@@ -1,0 +1,18 @@
+flowchart TD
+    prices["Price matrix"]
+    splits["rolling_time_splits /\nexpanding_time_splits"]
+    split["For each TimeSplit"]
+    train["train_prices\ntrain_start to train_end"]
+    fit["optional strategy.fit(train_prices)"]
+    window["prices up to test_end only"]
+    run["run_strategy"]
+    slice["slice test_start to test_end"]
+    metrics["compute_metrics on test net_return"]
+    result["SplitResult"]
+    aggregate["WalkForwardResult"]
+
+    prices --> split
+    splits --> split
+    split --> train --> fit
+    split --> window --> run --> slice --> metrics --> result --> aggregate
+

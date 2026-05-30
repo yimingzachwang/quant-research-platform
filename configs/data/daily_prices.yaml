@@ -1,0 +1,11 @@
+name: daily_prices
+schema_version: v1
+description: Daily ETF OHLCV dataset profile using Data Agent V1.
+ingestion_config: configs/data/data_agent_v1.yaml
+universe: configs/universes/core_etfs.yaml
+date_range:
+  start: "2010-01-01"
+  end: "2025-12-31"
+data_type: ohlcv
+source: yfinance
+frequency: 1d

@@ -1,0 +1,14 @@
+flowchart TD
+    registry["Dataset registry"]
+    load["load_universe"]
+    align["align_prices"]
+    panel["panel features\nreturns/momentum/volatility"]
+    rank["rank_assets"]
+    select["select_top_n / select_bottom_n"]
+    allocate["equal_weight / volatility_scaled"]
+    resample["resample_weights_to_daily"]
+    backtest["run_portfolio_backtest\nweights.shift(1)"]
+    result["PortfolioBacktestResult\nbacktest, weights, metrics"]
+
+    registry --> load --> align --> panel --> rank --> select --> allocate --> resample --> backtest --> result
+

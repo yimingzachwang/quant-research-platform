@@ -1,0 +1,43 @@
+version: "1"
+name: momentum_rotation_d1
+description: "Momentum rotation across 7 core ETFs — Phase D1 baseline."
+tags:
+  - momentum
+  - etf
+  - rotation
+
+universe:
+  tickers:
+    - SPY
+    - QQQ
+    - IWM
+    - TLT
+    - GLD
+    - XLF
+    - XLK
+
+date_range:
+  start: "2015-01-01"
+  end: "2024-12-31"
+
+strategy:
+  type: MomentumRotation
+  parameters:
+    lookback: 252
+    top_n: 3
+    rebalance_freq: ME
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 36
+    test_months: 12
+
+execution:
+  transaction_cost_bps: 5.0
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

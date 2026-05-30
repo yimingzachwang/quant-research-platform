@@ -1,0 +1,28 @@
+experiment:
+  id: exp_scaffold_20260520_example
+  name: example_daily_momentum
+  owner: research_manager
+  description: Architecture placeholder for a daily ETF momentum experiment.
+  universe: configs/universes/core_etfs.yaml
+  horizon:
+    name: daily
+    periods: 1
+  date_range:
+    start: "2010-01-01"
+    end: "2025-12-31"
+  data: configs/data/daily_prices.yaml
+  features: configs/features/placeholder_features.yaml
+  model: configs/models/noop_model.yaml
+  signals:
+    generator: placeholder_signal_generator
+  portfolio: configs/portfolio/long_only.yaml
+  risk: configs/risk/basic_risk.yaml
+  backtest: configs/backtests/default_daily.yaml
+  report: configs/reports/default_markdown.yaml
+tracking:
+  mlflow:
+    enabled: false
+    experiment_name: quant_etf_research
+    tracking_uri: file:./mlruns
+artifacts:
+  root: artifacts

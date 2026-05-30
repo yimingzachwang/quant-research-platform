@@ -1,0 +1,119 @@
+# Canonical ML Showcase — Ridge Regression Return Forecasting
+#
+# Institutional-grade research showcase experiment for Phase E1.
+# Forecasts 21-day (monthly) SPY returns using a 7-feature set spanning
+# momentum structure, volatility regime, and trend state.
+#
+# Design rationale:
+#   - Ridge regression: interpretable coefficients, stable under multicollinearity
+#   - 21-day horizon: captures monthly regime dynamics; richer IC structure than 5d
+#   - 7 features: sufficient for coefficient story without multicollinearity dominance
+#   - 48-month train / 12-month test: 6 WFV splits over 2015-2024 → credible stability diagnostics
+#   - 2013-2024: captures 2015 correction, 2018 Q4, 2020 COVID, 2022 bear, 2023-24 recovery
+#
+# Run with:
+#   python scripts/run_from_config.py configs/experiments/canonical_ml_showcase.yaml --report --preset canonical
+
+version: "2"
+name: canonical_ml_showcase
+description: >
+  Ridge regression forecasting 21-day SPY returns. Seven features spanning
+  short/medium/long momentum, realised volatility, price z-score, trend strength,
+  and mean-reversion signal. Walk-forward validated over 2013-2024.
+tags:
+  - ml
+  - regression
+  - ridge
+  - single_asset
+  - canonical
+  - showcase
+
+universe:
+  tickers:
+    - SPY
+
+date_range:
+  start: "2013-01-01"
+  end: "2024-12-31"
+
+# --- Feature engineering ---
+
+features:
+  ticker: SPY
+  entries:
+    - name: mom_20
+      type: momentum
+      params:
+        lookback: 20       # 1-month trailing return — short momentum
+
+    - name: mom_60
+      type: momentum
+      params:
+        lookback: 60       # 3-month trailing return — intermediate momentum
+
+    - name: mom_252
+      type: momentum
+      params:
+        lookback: 252      # 12-month trailing return — long-horizon trend
+
+    - name: vol_21
+      type: rolling_volatility
+      params:
+        window: 21         # 1-month realised volatility — risk regime indicator
+
+    - name: zscore_20
+      type: rolling_zscore
+      params:
+        window: 20         # Price z-score relative to recent distribution
+
+    - name: trend_20
+      type: trend_strength
+      params:
+        window: 20         # Directional consistency of recent price moves
+
+    - name: mom_5
+      type: momentum
+      params:
+        lookback: 5        # 1-week return — short-term mean-reversion signal
+
+# --- Label construction ---
+
+labels:
+  type: forward_returns
+  params:
+    horizon: 21            # 21-day (monthly) forward return
+
+# --- Model ---
+
+model:
+  type: RidgeRegression
+  params:
+    alpha: 0.5             # Moderate L2 regularisation — balances fit vs stability
+
+# --- Signal translation ---
+
+signal:
+  type: sign               # Long SPY when prediction > 0, flat when <= 0
+  params: {}
+
+# --- Walk-forward validation ---
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 48       # 4-year in-sample window
+    test_months: 12        # 1-year out-of-sample
+    gap_days: 0
+
+# --- Execution ---
+
+execution:
+  transaction_cost_bps: 5.0
+
+# --- Output ---
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

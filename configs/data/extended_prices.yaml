@@ -1,0 +1,15 @@
+name: extended_prices
+schema_version: v1
+description: >
+  Phase 3A universe expansion — download and register daily OHLCV for 15-ETF
+  extended universe. Already-registered tickers (SPY, QQQ, IWM, TLT, GLD, XLF,
+  XLK, XLE, EEM, EFA) will be skipped automatically; only new tickers (XLV, HYG,
+  TIP, DBC, VNQ) will be downloaded.
+ingestion_config: configs/data/data_agent_v1.yaml
+universe: configs/universes/extended_etfs.yaml
+date_range:
+  start: "2010-01-01"
+  end: "2025-12-31"
+data_type: ohlcv
+source: yfinance
+frequency: 1d

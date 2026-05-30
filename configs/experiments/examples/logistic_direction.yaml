@@ -1,0 +1,88 @@
+# Canonical example: Logistic Regression Direction (version "2" — ML-based)
+#
+# Predicts the direction of 5-day SPY returns (up/down) using momentum features.
+# Logistic regression outputs a class-1 probability; positions entered when P > 0.5.
+# Walk-forward validated with rolling 3y train / 1y test.
+#
+# Run with:
+#   python scripts/run_from_config.py configs/experiments/examples/logistic_direction.yaml
+#   python scripts/run_from_config.py configs/experiments/examples/logistic_direction.yaml --report
+#
+# Version "2" config schema: uses features/labels/model/signal instead of strategy.
+
+version: "2"
+name: example_logistic_direction
+description: "Logistic regression classifying SPY 5-day direction — canonical ML example."
+tags:
+  - ml
+  - classification
+  - logistic
+  - single_asset
+  - example
+
+universe:
+  tickers:
+    - SPY    # Predict and trade this single asset
+
+date_range:
+  start: "2015-01-01"
+  end: "2024-12-31"
+
+# --- ML pipeline sections ---
+
+features:
+  ticker: SPY
+  entries:
+    - name: mom_20
+      type: momentum
+      params:
+        lookback: 20       # 1-month momentum
+
+    - name: mom_60
+      type: momentum
+      params:
+        lookback: 60       # 3-month momentum
+
+    - name: vol_21
+      type: rolling_volatility
+      params:
+        window: 21         # 1-month realised volatility
+
+    - name: trend_20
+      type: trend_strength
+      params:
+        window: 20         # Rolling Pearson corr(price, time): +1 uptrend, -1 downtrend
+
+labels:
+  type: binary_direction   # 1.0 if 5-day forward return > 0 else 0.0
+  params:
+    horizon: 5             # 5-day (1-week) prediction horizon
+
+model:
+  type: LogisticRegression
+  params:
+    C: 1.0                 # Inverse regularisation (larger = less regularised)
+    max_iter: 1000
+
+signal:
+  type: threshold          # Long when P(up) > threshold, flat otherwise
+  params:
+    threshold: 0.5         # Default decision boundary
+
+# --- Shared sections (same as version "1") ---
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 36       # 3-year in-sample window
+    test_months: 12        # 1-year out-of-sample window
+    gap_days: 0
+
+execution:
+  transaction_cost_bps: 5.0  # 5 bps one-way
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

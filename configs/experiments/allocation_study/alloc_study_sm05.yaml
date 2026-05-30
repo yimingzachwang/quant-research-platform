@@ -1,0 +1,136 @@
+# Allocation Study — Softmax T=0.5 (High Concentration)
+#
+# Controlled comparative research: allocation policy comparison.
+# Identical to alloc_study_ew except for the weighting scheme.
+#
+# τ=0.5: High concentration — softmax sharpens score differences aggressively.
+# Assets with even moderate score advantages receive substantially higher weight.
+# Expected: higher HHI, lower effective breadth, potentially higher turnover
+# if scores are noisy.
+
+version: "2"
+name: alloc_study_sm05
+description: >
+  Allocation study — zscore_softmax T=0.5 (aggressive concentration). Ridge
+  cross-sectional ranking model, top-3 selection. Softmax allocates
+  disproportionate weight to highest-scored assets. Comparative arm against
+  equal-weight baseline (alloc_study_ew).
+tags:
+  - ml
+  - ridge
+  - panel
+  - allocation_study
+  - zscore_softmax
+  - temperature_0.5
+  - high_concentration
+
+universe:
+  tickers:
+    - SPY
+    - QQQ
+    - IWM
+    - EEM
+    - TLT
+    - GLD
+    - XLF
+    - XLK
+    - XLE
+
+date_range:
+  start: "2013-01-01"
+  end: "2024-12-31"
+
+features:
+  ticker: SPY
+  entries:
+    - name: mom_20
+      type: momentum
+      params:
+        lookback: 20
+    - name: mom_60
+      type: momentum
+      params:
+        lookback: 60
+    - name: mom_252
+      type: momentum
+      params:
+        lookback: 252
+    - name: vol_21
+      type: rolling_volatility
+      params:
+        window: 21
+    - name: zscore_20
+      type: rolling_zscore
+      params:
+        window: 20
+    - name: trend_20
+      type: trend_strength
+      params:
+        window: 20
+    - name: mom_5
+      type: momentum
+      params:
+        lookback: 5
+    - name: trend_persist_20d
+      type: trend_persistence
+      params:
+        window: 20
+    - name: breakout_63d
+      type: breakout_strength
+      params:
+        window: 63
+    - name: drawdown_dist_252d
+      type: drawdown_distance
+      params:
+        window: 252
+    - name: vol_compress_21_63
+      type: vol_compression
+      params:
+        short_window: 21
+        long_window: 63
+    - name: beta_60d
+      type: rolling_beta
+      params:
+        window: 60
+        market_ticker: SPY
+    - name: sharpe_mom_252d
+      type: risk_adjusted_momentum
+      params:
+        mom_window: 252
+        vol_window: 63
+
+labels:
+  type: ranking_target
+  params:
+    horizon: 21
+
+model:
+  type: RidgeRegression
+  params:
+    alpha: 0.5
+
+signal:
+  type: top_n
+  params:
+    n: 3
+
+portfolio_construction:
+  weighting:
+    scheme: zscore_softmax
+    temperature: 0.5
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 48
+    test_months: 12
+    gap_days: 0
+
+execution:
+  transaction_cost_bps: 5.0
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true

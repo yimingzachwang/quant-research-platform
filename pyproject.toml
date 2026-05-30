@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quant-etf-research"
+version = "0.1.0"
+description = "Architecture-first ETF quantitative research platform."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "jinja2>=3.1",
+  "loguru>=0.7",
+  "mlflow>=2.12",
+  "pandas>=2.2",
+  "pyarrow>=15",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "uvicorn>=0.30",
+  "yfinance>=0.2",
+]
+
+[project.optional-dependencies]
+research = [
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "matplotlib",
+  "plotly",
+]
+dev = [
+  "black",
+  "pre-commit",
+  "pytest",
+  "ruff",
+  "mypy",
+]
+
+[project.scripts]
+quant-run-experiment = "src.cli:run_experiment"
+quant-generate-report = "src.cli:generate_report"
+quant-validate-data = "src.cli:validate_data"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["."]

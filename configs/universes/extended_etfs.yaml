@@ -1,0 +1,27 @@
+name: extended_etfs
+description: >
+  Expanded 15-ETF universe for Phase 3A signal geometry research.
+  Covers core beta, sector breadth, international, fixed income, and alternatives.
+  All tickers are liquid, have continuous history from 2013, and are institutionally
+  interpretable. Added over core_etfs: XLV, HYG, TIP, DBC, VNQ.
+symbols:
+  # Core Beta
+  - SPY     # S&P 500 — US large-cap equities
+  - QQQ     # Nasdaq 100 — US technology / growth
+  - IWM     # Russell 2000 — US small-cap equities
+  # Sectors
+  - XLK     # SPDR Technology — sector
+  - XLF     # SPDR Financials — sector
+  - XLE     # SPDR Energy — sector
+  - XLV     # SPDR Health Care — sector (Phase 3A expansion)
+  # International
+  - EFA     # iShares MSCI EAFE — developed international
+  - EEM     # iShares MSCI Emerging Markets — EM equities
+  # Fixed Income
+  - TLT     # iShares 20yr Treasury — long-duration rates
+  - HYG     # iShares High Yield Corp Bond — credit risk (Phase 3A expansion)
+  - TIP     # iShares TIPS Bond — inflation-linked rates (Phase 3A expansion)
+  # Alternatives
+  - GLD     # SPDR Gold — commodity / safe haven
+  - DBC     # Invesco DB Commodity — broad commodities (Phase 3A expansion)
+  - VNQ     # Vanguard Real Estate ETF — REITs (Phase 3A expansion)

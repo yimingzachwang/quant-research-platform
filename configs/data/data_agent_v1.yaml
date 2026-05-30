@@ -1,0 +1,53 @@
+name: data_agent_v1
+schema_version: v1
+description: Deterministic daily ETF OHLCV and macro data infrastructure.
+supported_data_types:
+  - ohlcv
+  - macro
+supported_sources:
+  ohlcv:
+    - yfinance
+  macro:
+    - fred
+frequency: 1d
+storage:
+  raw: data/raw
+  processed: data/processed
+  features: data/features
+  metadata: data/external/metadata
+  registry: data/external/registry/datasets.json
+validation:
+  max_nan_ratio: 0.05
+  reject_empty: true
+  reject_duplicate_timestamps: true
+  reject_non_monotonic_timestamps: true
+  warn_missing_daily_timestamps: true
+canonical_schemas:
+  ohlcv:
+    - timestamp
+    - open
+    - high
+    - low
+    - close
+    - adjusted_close
+    - volume
+    - symbol
+    - source
+    - frequency
+  macro:
+    - timestamp
+    - value
+    - series_id
+    - source
+    - frequency
+examples:
+  etf_ohlcv:
+    symbol: SPY
+    data_type: ohlcv
+    source: yfinance
+    frequency: 1d
+  macro_series:
+    symbol: CPIAUCSL
+    data_type: macro
+    source: fred
+    frequency: 1d

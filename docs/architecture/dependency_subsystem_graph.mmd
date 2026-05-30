@@ -1,0 +1,52 @@
+flowchart TB
+    %% Primary idea: subsystem dependency direction, not exhaustive imports.
+
+    subgraph Foundation["Foundation"]
+        direction LR
+        Data["src/data"]
+        Cleaning["src/cleaning"]
+        Features["src/features"]
+    end
+
+    subgraph Research["Research construction"]
+        direction LR
+        ML["src/ml"]
+        Strategies["src/strategies"]
+        Portfolio["src/portfolio"]
+    end
+
+    subgraph Evaluation["Evaluation"]
+        direction LR
+        Backtesting["src/backtesting"]
+        Validation["src/validation"]
+    end
+
+    subgraph Reproducibility["Reproducibility and presentation"]
+        direction LR
+        Experiments["src/experiments"]
+        Visualisation["src/visualization"]
+        Reporting["src/reporting"]
+    end
+
+    subgraph Future["Placeholder / future boundaries"]
+        direction LR
+        RiskExecEval["risk / execution / evaluation"]
+        GenericModelsSignals["generic models / signals"]
+    end
+
+    Data --> Cleaning --> Features
+    Features --> ML
+    Features --> Strategies
+    ML --> Strategies
+    Strategies --> Portfolio --> Backtesting
+    Backtesting --> Validation
+    Backtesting --> Experiments
+    Validation --> Experiments
+    Experiments --> Visualisation --> Reporting
+    Experiments --> Reporting
+    Future -. future integration .-> Experiments
+
+    classDef implemented fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    classDef planned fill:#fff7df,stroke:#a06b00,stroke-width:1.4px,color:#172033;
+    class Data,Cleaning,Features,ML,Strategies,Portfolio,Backtesting,Validation,Experiments,Visualisation,Reporting implemented;
+    class RiskExecEval,GenericModelsSignals planned;

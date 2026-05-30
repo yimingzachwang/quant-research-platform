@@ -1,0 +1,34 @@
+flowchart TB
+    configs["configs/*.yaml"]
+    data["Data Layer\nDataRequest, ingestion, storage, registry"]
+    cleaning["Cleaning\nsmall DataFrame hygiene utilities"]
+    features["Features\npure trailing transforms"]
+    ml["ML Research\nlabels, SupervisedDataset, PredictionSeries, sklearn wrappers"]
+    strategies["Signals / Strategies\nsignals, Strategy, weights"]
+    portfolio["Portfolio\nalignment, ranking, allocation, portfolio backtest"]
+    backtesting["Backtesting\nlagged signals/weights, metrics"]
+    validation["Validation\nrolling/expanding splits, walk-forward"]
+    experiments["Experiments\nconfig IO, orchestration, artifacts, registry"]
+    viz["Visualization\nread-only matplotlib"]
+    reporting["Reporting\nartifact-driven markdown/html"]
+    placeholders["Placeholders\nrisk, execution, evaluation, generic models/signals"]
+    llm["Experimental LLM\nNL data request translator"]
+
+    configs --> data
+    data --> cleaning
+    data --> portfolio
+    cleaning --> features
+    features --> ml
+    features --> strategies
+    ml --> strategies
+    strategies --> portfolio
+    portfolio --> backtesting
+    backtesting --> validation
+    validation --> experiments
+    backtesting --> experiments
+    experiments --> viz
+    viz --> reporting
+    experiments --> reporting
+    llm -. experimental .-> data
+    placeholders -. future work .-> experiments
+

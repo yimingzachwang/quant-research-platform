@@ -1,0 +1,27 @@
+experiment:
+  id: exp_<topic>_<yyyymmdd>_<short_hash>
+  name: Example Experiment
+  owner: research_manager
+  description: Architecture-only experiment manifest.
+  created_at: null
+  universe: configs/universes/core_etfs.yaml
+  date_range:
+    start: "2020-01-01"
+    end: "2020-12-31"
+  horizon:
+    name: daily
+    periods: 1
+  data: configs/data/daily_prices.yaml
+  features: configs/features/placeholder_features.yaml
+  model: configs/models/noop_model.yaml
+  portfolio: configs/portfolio/long_only.yaml
+  risk: configs/risk/basic_risk.yaml
+  backtest: configs/backtests/default_daily.yaml
+  report: configs/reports/default_markdown.yaml
+tracking:
+  mlflow:
+    enabled: true
+    experiment_name: quant_etf_research
+    tracking_uri: file:./mlruns
+artifacts:
+  root: artifacts

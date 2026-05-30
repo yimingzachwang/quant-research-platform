@@ -1,0 +1,14 @@
+name: core_etfs
+description: Initial liquid ETF universe for low/mid-frequency research.
+symbols:
+  - SPY
+  - QQQ
+  - IWM
+  - TLT
+  - GLD
+  - XLF
+  - XLK
+  - XLE
+  - EEM
+  - EFA
+

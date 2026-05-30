@@ -1,0 +1,51 @@
+flowchart LR
+    %% Primary idea: F3 single-asset ML experiment lifecycle.
+
+    subgraph Config["Version 2 ML config"]
+        direction TB
+        RawCfg["raw YAML / JSON"]
+        Validated["validate_ml_config()"]
+        Normalised["normalize_ml_config()"]
+        RawCfg --> Validated --> Normalised
+    end
+
+    subgraph Build["Pure construction"]
+        direction TB
+        MLSpec["MLExperimentSpec"]
+        Factory["ml_factory"]
+        Strategy["MLStrategy"]
+        MLSpec --> Factory --> Strategy
+    end
+
+    subgraph Execute["Execution"]
+        direction TB
+        FullRun["full-period strategy run"]
+        WF["walk-forward validation\nfresh strategy instance"]
+    end
+
+    subgraph Persist["Persisted outputs"]
+        direction TB
+        RunArtefacts["experiment artefacts"]
+        Prov["ml_provenance.json"]
+        Diag["split + ML diagnostics"]
+    end
+
+    subgraph Deferred["Deferred panel path"]
+        direction TB
+        Panel["panel labels/signals\nschema-recognised\nnot yet implemented"]
+    end
+
+    Normalised --> MLSpec
+    Strategy --> FullRun
+    Strategy --> WF
+    FullRun --> RunArtefacts
+    WF --> RunArtefacts
+    MLSpec --> Prov
+    WF --> Diag
+    FullRun --> Diag
+    Panel -. raises ValueError in factory .-> Factory
+
+    classDef implemented fill:#f7f9fc,stroke:#24476f,stroke-width:1.4px,color:#172033;
+    classDef deferred fill:#fff7df,stroke:#a06b00,stroke-width:1.4px,color:#172033;
+    class RawCfg,Validated,Normalised,MLSpec,Factory,Strategy,FullRun,WF,RunArtefacts,Prov,Diag implemented;
+    class Panel deferred;

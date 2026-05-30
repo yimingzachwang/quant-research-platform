@@ -1,0 +1,11 @@
+feature:
+  id: feat_<data_family>_<transform>_<window>
+  name: Example Feature
+  owner: quant_analyst
+  data_dependencies: []
+  lookback_periods: 0
+  point_in_time: true
+  missing_data_policy: raise
+  output:
+    index: [timestamp, symbol]
+    columns: []

@@ -1,0 +1,91 @@
+# Canonical example: Ridge Regression Forecast (version "2" — ML-based)
+#
+# Predicts 5-day forward returns for SPY using momentum and volatility features.
+# Ridge regression with L2 regularisation. Sign-of-prediction signal.
+# Walk-forward validated with rolling 3y train / 1y test.
+#
+# Run with:
+#   python scripts/run_from_config.py configs/experiments/examples/ridge_forecast.yaml
+#   python scripts/run_from_config.py configs/experiments/examples/ridge_forecast.yaml --report
+#
+# Version "2" config schema: uses features/labels/model/signal instead of strategy.
+
+version: "2"
+name: example_ridge_forecast
+description: "Ridge regression forecasting 5-day SPY returns — canonical ML example."
+tags:
+  - ml
+  - regression
+  - ridge
+  - single_asset
+  - example
+
+universe:
+  tickers:
+    - SPY    # Predict and trade this single asset
+
+date_range:
+  start: "2015-01-01"
+  end: "2024-12-31"
+
+# --- ML pipeline sections ---
+
+features:
+  ticker: SPY
+  entries:
+    - name: mom_20
+      type: momentum
+      params:
+        lookback: 20       # 1-month trailing return
+
+    - name: mom_60
+      type: momentum
+      params:
+        lookback: 60       # 3-month trailing return
+
+    - name: mom_252
+      type: momentum
+      params:
+        lookback: 252      # 12-month trailing return (skip-last-month variant if desired)
+
+    - name: vol_21
+      type: rolling_volatility
+      params:
+        window: 21         # 1-month realised vol (annualised by default)
+
+    - name: zscore_20
+      type: rolling_zscore
+      params:
+        window: 20         # 1-month z-score of close price
+
+labels:
+  type: forward_returns    # Predict simple forward return
+  params:
+    horizon: 5             # 5-day (1-week) ahead
+
+model:
+  type: RidgeRegression
+  params:
+    alpha: 1.0             # L2 regularisation strength
+
+signal:
+  type: sign               # Long when prediction > 0, flat when <= 0
+  params: {}
+
+# --- Shared sections (same as version "1") ---
+
+validation:
+  type: rolling
+  parameters:
+    train_months: 36       # 3-year in-sample window
+    test_months: 12        # 1-year out-of-sample window
+    gap_days: 0
+
+execution:
+  transaction_cost_bps: 5.0  # 5 bps one-way
+
+output:
+  base_dir: results/experiments
+  registry_path: results/experiments/registry.json
+  register: true
+  save_plots: true
