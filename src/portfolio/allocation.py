@@ -8,9 +8,6 @@ where rows sum to 1 (or 0 when no assets are selected).
 
 from __future__ import annotations
 
-import math
-
-import numpy as np
 import pandas as pd
 
 

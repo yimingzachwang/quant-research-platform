@@ -3,12 +3,10 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.strategies.baselines import BuyAndHoldStrategy, EqualWeightStrategy
 from src.strategies.comparison import compare_strategies, metrics_table, rank_strategies
 from src.strategies.momentum_rotation import MomentumRotationStrategy
 from src.strategies.runner import StrategyResult
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

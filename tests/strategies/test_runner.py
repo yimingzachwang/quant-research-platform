@@ -3,10 +3,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.strategies.momentum_rotation import MomentumRotationStrategy
 from src.strategies.runner import StrategyResult, run_strategy
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

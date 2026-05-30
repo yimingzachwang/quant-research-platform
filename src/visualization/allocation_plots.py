@@ -15,10 +15,9 @@ from __future__ import annotations
 
 import math as _math
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 
 from src.visualization.styles import (
     COLORS,
@@ -28,9 +27,8 @@ from src.visualization.styles import (
     label_axes,
     make_figure,
 )
+from src.visualization.typography import get_typography
 from src.visualization.utils import save_figure
-from src.visualization.typography import get_typography, scale_dynamic_fontsize
-
 
 # ---------------------------------------------------------------------------
 # Allocation concentration evolution
@@ -326,7 +324,7 @@ def plot_confidence_calibration(
     bars = ax1.bar(x, ret_vals, color=bar_colors, alpha=0.85, width=0.6, edgecolor="white",
                    linewidth=0.5)
 
-    for bar, val in zip(bars, ret_vals):
+    for bar, val in zip(bars, ret_vals, strict=False):
         sign = 1 if val >= 0 else -1
         offset = (ax1.get_ylim()[1] - ax1.get_ylim()[0]) * 0.015 if ax1.get_ylim()[0] != ax1.get_ylim()[1] else 0.002
         ax1.text(bar.get_x() + bar.get_width() / 2, val + sign * abs(offset),

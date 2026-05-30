@@ -7,7 +7,7 @@ these; the router dispatches on the concrete type.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 _DEFAULT_PROVIDER = "anthropic"
 

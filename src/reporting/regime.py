@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 def _split_vol_levels(
     prices: pd.DataFrame,
-    wf: "WalkForwardResult",
+    wf: WalkForwardResult,
 ) -> dict[int, str]:
     """Classify each WF split's test period as 'high_vol' or 'low_vol'.
 

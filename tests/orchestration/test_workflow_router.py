@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.orchestration.intents.intent_schema import (
     BuildContextIntent,
     BuildEvolutionChainIntent,

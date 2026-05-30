@@ -25,7 +25,7 @@ def summarize_ml_diagnostics(
     coef_stability_list = ml_model_diagnostics.get("coefficient_stability_summary") or []
     if isinstance(coef_stability_list, dict):
         coef_stability_list = []
-    pred_strength = ml_model_diagnostics.get("prediction_strength", {})
+    ml_model_diagnostics.get("prediction_strength", {})
     ranking_geom = ml_model_diagnostics.get("ranking_geometry", {})
     fc = ml_model_diagnostics.get("feature_contributions", {})
 

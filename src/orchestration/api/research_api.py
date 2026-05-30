@@ -19,7 +19,6 @@ from src.orchestration.api.artefact_api import (
     get_artefact,
     get_plots,
     list_experiment_artefacts,
-    list_plot_names,
 )
 from src.orchestration.api.comparison_api import (
     compare_experiments,
@@ -28,8 +27,6 @@ from src.orchestration.api.comparison_api import (
 )
 from src.orchestration.api.experiment_loader import (
     load_experiment_bundle,
-    load_experiment_metrics,
-    load_experiment_metadata,
 )
 from src.orchestration.api.schemas import (
     ArtefactMetadata,
@@ -43,15 +40,6 @@ from src.orchestration.api.schemas import (
     ResearchEvolutionChain,
 )
 from src.orchestration.config_generation.draft_generator import generate_draft, load_draft
-from src.orchestration.session.session_manager import (
-    create_session as _create_session,
-    load_session as _load_session,
-    record_event as _record_event,
-    summarize_session as _summarize_session,
-    update_session_status as _update_session_status,
-)
-from src.orchestration.session.session_schema import ResearchSession, SessionEvent
-from src.orchestration.utils.filesystem import list_session_ids
 from src.orchestration.config_generation.draft_schema import (
     DraftValidationResult,
     ExperimentDraft,
@@ -67,14 +55,13 @@ from src.orchestration.context.context_builder import (
 )
 from src.orchestration.evolution.evolution_builder import (
     build_evolution_chain,
-    load_lineage,
     persist_evolution_chain,
     register_lineage,
 )
 from src.orchestration.llm.comparison_engine import run_comparative_review
 from src.orchestration.llm.iteration_engine import run_iteration_proposal
 from src.orchestration.llm.review_engine import run_review
-from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC, PROVIDER_STUB
+from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC
 from src.orchestration.registry.experiment_registry import (
     find_by_strategy,
     find_by_tag,
@@ -83,8 +70,23 @@ from src.orchestration.registry.experiment_registry import (
     list_summaries,
     rank_by_sharpe,
 )
-from src.orchestration.utils.filesystem import list_experiments
-
+from src.orchestration.session.session_manager import (
+    create_session as _create_session,
+)
+from src.orchestration.session.session_manager import (
+    load_session as _load_session,
+)
+from src.orchestration.session.session_manager import (
+    record_event as _record_event,
+)
+from src.orchestration.session.session_manager import (
+    summarize_session as _summarize_session,
+)
+from src.orchestration.session.session_manager import (
+    update_session_status as _update_session_status,
+)
+from src.orchestration.session.session_schema import ResearchSession
+from src.orchestration.utils.filesystem import list_session_ids
 
 # ---------------------------------------------------------------------------
 # Experiment discovery

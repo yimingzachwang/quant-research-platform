@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from src.reporting.html import markdown_to_html, _inline, _is_table_separator
-
+from src.reporting.html import _inline, _is_table_separator, markdown_to_html
 
 # ---------------------------------------------------------------------------
 # markdown_to_html — top-level

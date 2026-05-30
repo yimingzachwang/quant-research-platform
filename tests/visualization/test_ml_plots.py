@@ -6,9 +6,9 @@ No pixel-level assertions — these are structural smoke tests only.
 
 from __future__ import annotations
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
 import pytest
 
 matplotlib.use("Agg")
@@ -21,7 +21,6 @@ from src.visualization.ml_plots import (
     plot_signal_turnover,
     plot_split_metric_stability,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

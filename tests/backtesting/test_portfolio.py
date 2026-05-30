@@ -1,9 +1,7 @@
 """Tests for src/backtesting/portfolio.py."""
 
-import numpy as np
 import pandas as pd
 import pytest
-
 from src.backtesting.portfolio import compute_exposure, compute_turnover, position_sizing
 
 

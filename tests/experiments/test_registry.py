@@ -1,13 +1,11 @@
 """Tests for src/experiments/registry.py."""
 
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.experiments.config import ExperimentSpec
 from src.experiments.registry import (
     ExperimentRegistry,
@@ -17,7 +15,6 @@ from src.experiments.registry import (
     register_experiment,
 )
 from src.experiments.results import ExperimentResult
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

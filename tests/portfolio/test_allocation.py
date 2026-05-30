@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.portfolio.allocation import equal_weight, resample_weights_to_daily, volatility_scaled
 
 

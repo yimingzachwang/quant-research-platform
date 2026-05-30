@@ -5,7 +5,7 @@ All backend functions are mocked.
 
 from __future__ import annotations
 
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from tests.api.conftest import (
     make_stub_comparison,
@@ -49,7 +49,7 @@ class TestReviewEndpoint:
         review = make_stub_review()
         with (
             patch(f"{_MODULE}.load_research_session", return_value=stub),
-            patch(f"{_MODULE}.run_llm_review", return_value=review) as mock_review,
+            patch(f"{_MODULE}.run_llm_review", return_value=review),
             patch(f"{_MODULE}.record_session_event", return_value=stub) as mock_record,
         ):
             client.post(

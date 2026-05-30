@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
-import pytest
 
 from src.experiments.contracts import (
-    ARTEFACT_VERSION,
     ARTEFACT_DIRS,
+    ARTEFACT_VERSION,
     CONFIG_ARTEFACTS,
     CORE_ARTEFACTS,
     D1_ARTEFACTS,
     REQUIRED_ARTEFACTS,
     check_artefact_dir,
 )
-
 
 # ---------------------------------------------------------------------------
 # Constants

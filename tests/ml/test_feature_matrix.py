@@ -8,10 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
-
 from src.ml.feature_matrix import align_features_and_labels, build_feature_matrix
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -48,7 +45,8 @@ def test_build_feature_matrix_single_series_fn():
 
 def test_build_feature_matrix_series_renamed_to_key():
     prices = _prices()
-    fn = lambda p: pd.Series(p.mean(axis=1), name="something_else")
+    def fn(p):
+        return pd.Series(p.mean(axis=1), name="something_else")
     X = build_feature_matrix(prices, {"my_feature": fn})
     assert "my_feature" in X.columns
     assert "something_else" not in X.columns
@@ -67,14 +65,16 @@ def test_build_feature_matrix_multiple_series_fns():
 
 def test_build_feature_matrix_single_col_dataframe_renamed():
     prices = _prices(tickers=["SPY"])
-    fn = lambda p: p.pct_change().rename(columns={"SPY": "original_name"})
+    def fn(p):
+        return p.pct_change().rename(columns={"SPY": "original_name"})
     X = build_feature_matrix(prices, {"my_col": fn})
     assert list(X.columns) == ["my_col"]
 
 
 def test_build_feature_matrix_multi_col_dataframe_prefixed():
     prices = _prices(tickers=["A", "B", "C"])
-    fn = lambda p: p.pct_change()
+    def fn(p):
+        return p.pct_change()
     X = build_feature_matrix(prices, {"ret": fn})
     expected_cols = {"ret_A", "ret_B", "ret_C"}
     assert set(X.columns) == expected_cols

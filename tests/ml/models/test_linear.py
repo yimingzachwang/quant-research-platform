@@ -9,7 +9,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.contracts import PredictionSeries
 from src.ml.datasets import SupervisedDataset
 from src.ml.models.linear import (
@@ -18,7 +17,6 @@ from src.ml.models.linear import (
     LinearRegressionModel,
     RidgeRegressionModel,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers

@@ -8,11 +8,9 @@ All functions are pure: no mutation, no side effects, no plotting.
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 from src.validation.walk_forward import WalkForwardResult
-
 
 # ---------------------------------------------------------------------------
 # Per-split summary

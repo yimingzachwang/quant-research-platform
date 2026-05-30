@@ -8,6 +8,7 @@ Usage:
     python scripts/run_from_config.py configs/experiments/momentum_rotation.yaml --report --output reports/custom
     python scripts/run_from_config.py configs/experiments/canonical_ml.yaml --report --render-profile frontend
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -19,7 +20,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.experiments.orchestrator import format_run_summary, run_and_report, run_experiment_from_config
+from src.experiments.orchestrator import (
+    format_run_summary,
+    run_and_report,
+    run_experiment_from_config,
+)
 from src.reporting.report_spec import (
     AUDIT_REPORT,
     CANONICAL_SHOWCASE,

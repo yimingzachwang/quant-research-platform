@@ -67,7 +67,7 @@ def list_artefacts(
 ) -> list[ArtefactMetadata]:
     """Return ArtefactMetadata for every known artefact key, marking which exist."""
     diag_paths = all_diagnostics_paths(experiment_name, base)
-    root = experiment_root(experiment_name, base)
+    experiment_root(experiment_name, base)
 
     core_paths: dict[str, Path] = {
         "metadata": metadata_path(experiment_name, base),

@@ -2,15 +2,11 @@
 
 from pathlib import Path
 
-import pytest
-
 from src.orchestration.utils.filesystem import (
     all_diagnostics_paths,
-    config_path,
     diagnostics_dir,
     equity_curve_path,
     experiment_root,
-    experiments_root,
     list_experiments,
     llm_context_path,
     llm_review_path,
@@ -20,7 +16,6 @@ from src.orchestration.utils.filesystem import (
     plot_index_path,
     plot_path,
     plots_dir,
-    report_figures_dir,
     report_manifest_path,
     research_dir,
     returns_path,

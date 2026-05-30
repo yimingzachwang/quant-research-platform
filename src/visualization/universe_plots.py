@@ -9,22 +9,24 @@ infrastructure diagnostics, not strategy performance charts.
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import numpy as np
+import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
-    FIG_WIDTH_FULL,
     FIG_HEIGHT_STANDARD,
-    FIG_HEIGHT_TALL,
+    FIG_WIDTH_FULL,
     label_axes,
     make_figure,
 )
+from src.visualization.typography import (
+    get_typography,
+    heatmap_cell_fontsize,
+    scale_dynamic_fontsize,
+)
 from src.visualization.utils import save_figure
-from src.visualization.typography import get_typography, heatmap_cell_fontsize, scale_dynamic_fontsize
-
 
 # ---------------------------------------------------------------------------
 # Universe coverage heatmap

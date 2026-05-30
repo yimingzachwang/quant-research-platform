@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-import pytest
-
 from src.ml.models.base import BaseMLModel
 from src.ml.models.linear import LinearRegressionModel, RidgeRegressionModel
 from src.ml.models.logistic import LogisticRegressionModel

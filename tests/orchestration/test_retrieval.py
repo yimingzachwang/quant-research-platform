@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from src.orchestration.retrieval.artefact_retriever import (
     _infer_type,
     list_artefacts,
@@ -15,15 +13,15 @@ from src.orchestration.retrieval.diagnostics_retriever import (
     load_ml_model_diagnostics,
     load_split_metrics,
 )
+from src.orchestration.retrieval.manifest_retriever import (
+    get_rendered_sections,
+    load_manifest,
+)
 from src.orchestration.retrieval.plot_retriever import (
     get_plot_index,
     get_primary_plots,
     list_plot_stems,
     plot_exists,
-)
-from src.orchestration.retrieval.manifest_retriever import (
-    get_rendered_sections,
-    load_manifest,
 )
 
 _CANONICAL = "canonical_ml_multi_asset"

@@ -8,7 +8,6 @@ All disk I/O uses tmp_path fixtures.
 from __future__ import annotations
 
 import dataclasses
-import hashlib
 import json
 import uuid
 from pathlib import Path
@@ -17,7 +16,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-
 from src.orchestration.config_generation.draft_schema import (
     DraftChange,
     DraftValidationResult,
@@ -33,11 +31,8 @@ from src.orchestration.config_generation.yaml_renderer import render_to_yaml
 from src.orchestration.intents.intent_parser import _rule_based_parse, parse
 from src.orchestration.intents.intent_schema import (
     GenerateDraftIntent,
-    UnrecognisedIntent,
 )
-from src.orchestration.router.routing_schema import WorkflowResult
 from src.orchestration.router.workflow_router import route
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

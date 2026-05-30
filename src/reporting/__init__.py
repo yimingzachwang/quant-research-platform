@@ -1,6 +1,9 @@
 """Report generation interfaces, placeholders, and Phase D2 artefact reporting."""
 
 # Phase D2: artefact-driven static report generation
+# Legacy scaffold (preserved for backward compatibility)
+from src.reporting.interfaces import Report, ReportGenerator
+from src.reporting.placeholders import MarkdownReportGenerator
 from src.reporting.report_builder import (
     ExperimentArtefacts,
     ReportPaths,
@@ -18,10 +21,6 @@ from src.reporting.report_spec import (
     STANDARD_REPORT,
     ResearchReportSpec,
 )
-
-# Legacy scaffold (preserved for backward compatibility)
-from src.reporting.interfaces import Report, ReportGenerator
-from src.reporting.placeholders import MarkdownReportGenerator
 
 __all__ = [
     # Phase D2

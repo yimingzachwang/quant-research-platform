@@ -5,7 +5,6 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.features.volatility import ewm_volatility, rolling_volatility
 
 _ANN = math.sqrt(252)

@@ -2,8 +2,7 @@
 
 import pandas as pd
 import pytest
-
-from src.cleaning.validation import OHLCVValidationResult, validate_ohlcv
+from src.cleaning.validation import validate_ohlcv
 
 
 @pytest.fixture()

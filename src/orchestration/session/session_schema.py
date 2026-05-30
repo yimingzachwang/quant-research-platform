@@ -17,7 +17,6 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Constants (plain classes — no enum, no state machine)
 # ---------------------------------------------------------------------------

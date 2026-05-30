@@ -7,7 +7,6 @@ from openai import OpenAI
 from src.llm.prompts import SYSTEM_PROMPT
 from src.llm.schemas import LLMDataRequest
 
-
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

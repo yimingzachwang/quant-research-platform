@@ -33,7 +33,6 @@ from src.strategies.base import Strategy
 from src.strategies.runner import run_strategy
 from src.validation.splits import TimeSplit
 
-
 # ---------------------------------------------------------------------------
 # Result structures
 # ---------------------------------------------------------------------------

@@ -1,6 +1,5 @@
 """End-to-end tests for the top-level research_api using real artefacts."""
 
-import pytest
 
 from src.orchestration.api.research_api import (
     build_llm_context,

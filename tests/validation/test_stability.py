@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.strategies.baselines import EqualWeightStrategy
 from src.validation.splits import rolling_time_splits
 from src.validation.stability import (
@@ -13,7 +12,6 @@ from src.validation.stability import (
     summarize_stability,
 )
 from src.validation.walk_forward import WalkForwardResult, run_walk_forward_validation
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

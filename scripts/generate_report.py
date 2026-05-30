@@ -6,6 +6,7 @@ Usage:
     python scripts/generate_report.py results/experiments/my_experiment --output reports
     python scripts/generate_report.py results/experiments/my_experiment --preset canonical
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 

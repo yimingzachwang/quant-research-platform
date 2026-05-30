@@ -10,7 +10,6 @@ leakage-safe — they do not modify index semantics or drop rows.
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
 

@@ -6,22 +6,18 @@ _apply_prediction_normalization(), and backward-compatibility with equal_weight.
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pandas as pd
 import pytest
-
-from src.portfolio.weighting_policy import (
-    VALID_WEIGHTING_SCHEMES,
-    VALID_PREDICTION_NORMALIZATIONS,
-    apply_weighting_policy,
-    _apply_prediction_normalization,
-    _zscore_softmax,
-    _confidence_weighted,
-)
 from src.portfolio.allocation import equal_weight
-
+from src.portfolio.weighting_policy import (
+    VALID_PREDICTION_NORMALIZATIONS,
+    VALID_WEIGHTING_SCHEMES,
+    _apply_prediction_normalization,
+    _confidence_weighted,
+    _zscore_softmax,
+    apply_weighting_policy,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -256,7 +252,7 @@ def test_zscore_softmax_is_row_wise():
 
     scores_modified = scores.copy()
     scores_modified.iloc[-1] *= 100.0  # change only last row
-    mask_modified = _make_top2_mask(scores_modified)
+    _make_top2_mask(scores_modified)
     # Only recompute for equal mask rows
     result_modified = _zscore_softmax(scores_modified, mask, temperature=1.0)
 
@@ -287,6 +283,6 @@ def test_confidence_weighted_is_row_wise():
 # ---------------------------------------------------------------------------
 
 def test_apply_weighting_policy_exported_from_portfolio():
-    from src.portfolio import apply_weighting_policy, VALID_WEIGHTING_SCHEMES
+    from src.portfolio import VALID_WEIGHTING_SCHEMES, apply_weighting_policy
     assert callable(apply_weighting_policy)
     assert "equal_weight" in VALID_WEIGHTING_SCHEMES

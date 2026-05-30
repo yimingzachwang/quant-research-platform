@@ -6,15 +6,13 @@ across normal data, single-family, empty data, and unknown-family cases.
 
 from __future__ import annotations
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
-import pytest
 
 matplotlib.use("Agg")
 
 from src.visualization.ml_plots import plot_feature_family_ic
-
 
 # ---------------------------------------------------------------------------
 # Helpers

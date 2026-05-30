@@ -14,7 +14,6 @@ import importlib
 
 import pytest
 
-
 _ROUTER_MODULES = [
     "src.api.routers.sessions",
     "src.api.routers.reviews",

@@ -5,13 +5,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.diagnostics.stability import (
     coefficient_stability,
     prediction_drift,
     split_metric_table,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -23,11 +21,11 @@ def _make_dates(n: int) -> pd.DatetimeIndex:
 
 def _make_wf_result():
     """Minimal WalkForwardResult for split_metric_table tests."""
-    from src.validation.walk_forward import WalkForwardResult, SplitResult
-    from src.validation.splits import TimeSplit
-    from src.backtesting.metrics import compute_metrics
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+    from src.backtesting.metrics import compute_metrics
+    from src.validation.splits import TimeSplit
+    from src.validation.walk_forward import SplitResult, WalkForwardResult
 
     dates = pd.date_range("2020-01-01", periods=200, freq="B")
     returns = pd.Series(np.random.randn(200) * 0.01, index=dates, name="SPY")

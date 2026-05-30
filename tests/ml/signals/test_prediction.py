@@ -9,7 +9,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.contracts import PredictionSeries
 from src.ml.signals.prediction import (
     long_short_weights,
@@ -18,7 +17,6 @@ from src.ml.signals.prediction import (
     threshold_signal,
     top_n_weights,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

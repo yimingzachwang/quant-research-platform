@@ -21,7 +21,7 @@ from src.orchestration.llm.review_engine import (
     _assert_no_unresolved_tokens,
     _compute_context_hash,
 )
-from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC, REVIEW_VERSION
+from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC
 from src.orchestration.utils.filesystem import (
     iteration_proposal_json_path,
     iteration_proposal_md_path,

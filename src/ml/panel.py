@@ -10,7 +10,7 @@ No I/O, no model fitting, no strategy logic.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import pandas as pd
 

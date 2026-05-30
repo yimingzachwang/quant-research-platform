@@ -3,15 +3,12 @@
 import json
 
 import pytest
-
-from src.orchestration.llm.llm_interface import call_llm, LLMResponse
+from src.orchestration.llm.llm_interface import LLMResponse, call_llm
+from src.orchestration.llm.prompt_templates import EXPERIMENT_REVIEW, load_template
 from src.orchestration.llm.review_schema import (
-    PROVIDER_ANTHROPIC,
-    PROVIDER_OPENAI,
-    PROVIDER_STUB,
     ALL_SECTIONS,
+    PROVIDER_STUB,
 )
-from src.orchestration.llm.prompt_templates import load_template, EXPERIMENT_REVIEW
 
 
 def test_stub_provider_returns_response():

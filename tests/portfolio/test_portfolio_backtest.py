@@ -1,11 +1,8 @@
 """Tests for src/portfolio/portfolio_backtest.py."""
 
-import numpy as np
 import pandas as pd
 import pytest
-
 from src.portfolio.portfolio_backtest import PortfolioBacktestResult, run_portfolio_backtest
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

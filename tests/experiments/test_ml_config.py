@@ -3,24 +3,21 @@
 from __future__ import annotations
 
 import pytest
-
 from src.experiments.ml_config import (
+    _VALID_FEATURE_TYPES,
+    _VALID_LABEL_TYPES,
+    _VALID_MODEL_TYPES,
     FeatureEntry,
     FeatureSpec,
     LabelSpec,
     MLExperimentSpec,
     ModelSpec,
     SignalSpec,
-    _VALID_FEATURE_TYPES,
-    _VALID_LABEL_TYPES,
-    _VALID_MODEL_TYPES,
-    _VALID_SIGNAL_TYPES,
     build_ml_experiment_spec,
     ml_experiment_hash,
     normalize_ml_config,
     validate_ml_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Minimal valid config fixture

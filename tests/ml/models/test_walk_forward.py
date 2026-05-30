@@ -9,7 +9,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.contracts import PredictionSeries
 from src.ml.datasets import SupervisedDataset, build_supervised_dataset
 from src.ml.labels import forward_returns
@@ -20,7 +19,6 @@ from src.ml.pipelines.walk_forward import (
     run_walk_forward_predictions,
 )
 from src.validation.splits import rolling_time_splits
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,7 +76,7 @@ def test_wf_prediction_indices_within_test_windows():
     splits = rolling_time_splits(ds.X.index, train_months=12, test_months=3)
     model = LinearRegressionModel()
     result = run_walk_forward_predictions(model, ds, splits)
-    for pred, split in zip(result.predictions, result.splits):
+    for pred, split in zip(result.predictions, result.splits, strict=False):
         assert pred.values.index.min() >= split.test_start
         assert pred.values.index.max() <= split.test_end
 
@@ -217,7 +215,6 @@ def test_concatenate_raises_on_duplicate_index():
 
 def test_importable_from_pipelines_package():
     from src.ml.pipelines import (
-        WalkForwardPredictions,
         concatenate_predictions,
         run_walk_forward_predictions,
     )

@@ -11,21 +11,20 @@ Figures expose tradeoffs and diagnostics, not performance dashboards.
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import numpy as np
+import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
     FIG_HEIGHT_STANDARD,
-    FIG_HEIGHT_TALL,
     FIG_WIDTH_FULL,
     label_axes,
     make_figure,
 )
-from src.visualization.utils import save_figure
 from src.visualization.typography import get_typography, scale_dynamic_fontsize
+from src.visualization.utils import save_figure
 
 # Qualitative palette indexed by scheme label
 _SCHEME_PALETTE = {
@@ -68,7 +67,7 @@ def plot_equity_comparison(
     labels = list(equity_dict.keys())
     colors = _scheme_colors(labels)
 
-    for (lbl, curve), color in zip(equity_dict.items(), colors):
+    for (lbl, curve), color in zip(equity_dict.items(), colors, strict=False):
         lw = 1.8 if "Equal Weight" in lbl else 1.2
         ax.plot(curve.index, curve.values, color=color, linewidth=lw, label=lbl,
                 alpha=0.9)
@@ -115,7 +114,7 @@ def plot_hhi_comparison(
     colors = _scheme_colors(labels)
     min_p = max(1, window // 4)
 
-    for (lbl, hhi), color in zip(hhi_dict.items(), colors):
+    for (lbl, hhi), color in zip(hhi_dict.items(), colors, strict=False):
         rolled = hhi.rolling(window, min_periods=min_p).mean()
         lw = 1.8 if "Equal Weight" in lbl else 1.2
         ax.plot(rolled.index, rolled.values, color=color, linewidth=lw,
@@ -156,7 +155,7 @@ def plot_breadth_entropy_comparison(
         ax.tick_params(labelsize=_t.tick)
         ax.grid(axis="y", alpha=0.25, linewidth=0.5)
 
-    for (lbl, br), color in zip(breadth_dict.items(), colors):
+    for (lbl, br), color in zip(breadth_dict.items(), colors, strict=False):
         rolled = br.rolling(window, min_periods=min_p).mean()
         lw = 1.8 if "Equal Weight" in lbl else 1.2
         ax1.plot(rolled.index, rolled.values, color=color, linewidth=lw,
@@ -166,7 +165,7 @@ def plot_breadth_entropy_comparison(
     ax1.legend(frameon=False, fontsize=_t.legend)
     ax1.set_title(title, fontsize=_t.small_label, fontweight="bold", loc="left")
 
-    for (lbl, en), color in zip(eff_n_dict.items(), colors):
+    for (lbl, en), color in zip(eff_n_dict.items(), colors, strict=False):
         rolled = en.rolling(window, min_periods=min_p).mean()
         lw = 1.8 if "Equal Weight" in lbl else 1.2
         ax2.plot(rolled.dropna().index, rolled.dropna().values, color=color,
@@ -205,7 +204,7 @@ def plot_turnover_comparison(
     colors = _scheme_colors(labels)
     min_p = max(1, window // 4)
 
-    for (lbl, to), color in zip(turnover_dict.items(), colors):
+    for (lbl, to), color in zip(turnover_dict.items(), colors, strict=False):
         rolled = to.rolling(window, min_periods=min_p).mean()
         lw = 1.8 if "Equal Weight" in lbl else 1.2
         mean_to = float(to.mean())
@@ -256,7 +255,7 @@ def plot_sharpe_vs_concentration(
     turnover_vals = summary_df.get("mean_turnover", pd.Series(0.01, index=summary_df.index)).values
     sizes = np.clip(turnover_vals * 5000, 80, 600)
 
-    for i, (lbl, color) in enumerate(zip(labels, colors)):
+    for i, (lbl, color) in enumerate(zip(labels, colors, strict=False)):
         ax.scatter(hhi_vals[i], sharpe_vals[i], s=sizes[i], color=color,
                    alpha=0.85, zorder=3, edgecolors="white", linewidths=0.8)
         ax.annotate(lbl, (hhi_vals[i], sharpe_vals[i]),
@@ -313,14 +312,14 @@ def plot_allocation_metrics_bar(
     n_metrics = len(cols)
     n_schemes = len(summary_df)
     labels = list(summary_df.index)
-    colors = _scheme_colors(labels)
+    _scheme_colors(labels)
 
     fig, axes = plt.subplots(1, n_metrics,
                               figsize=(FIG_WIDTH_FULL, FIG_HEIGHT_STANDARD * 0.9))
     if n_metrics == 1:
         axes = [axes]
 
-    for ax, metric in zip(axes, cols):
+    for ax, metric in zip(axes, cols, strict=False):
         vals = summary_df[metric].values
         bar_colors = [COLORS["positive"] if v >= 0 else COLORS["negative"]
                       for v in vals]
@@ -536,7 +535,7 @@ def plot_calibration_comparison(
     ax.tick_params(labelsize=_t.tick)
     ax.grid(axis="y", alpha=0.2, linewidth=0.5)
 
-    for i, (lbl, color) in enumerate(zip(labels, colors)):
+    for i, (lbl, color) in enumerate(zip(labels, colors, strict=False)):
         qr = valid[lbl]["quintile_returns"]
         offset = (i - n_schemes / 2 + 0.5) * width
         ax.bar(x + offset, qr.values, width=width * 0.9, color=color,

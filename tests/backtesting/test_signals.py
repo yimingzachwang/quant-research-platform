@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.backtesting.signals import (
     crossover_signal,
     long_only_signal,

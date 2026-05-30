@@ -13,11 +13,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import matplotlib
+
 matplotlib.use("Agg")
 
-import pandas as pd
 
-from src.portfolio.alignment import load_universe, align_prices
+import matplotlib.pyplot as plt
+from src.portfolio.alignment import align_prices, load_universe
 from src.strategies.baselines import EqualWeightStrategy
 from src.strategies.momentum_rotation import MomentumRotationStrategy
 from src.validation.splits import expanding_time_splits, rolling_time_splits
@@ -34,9 +35,6 @@ from src.visualization.validation_plots import (
     plot_walk_forward_equity,
     plot_walk_forward_stitched,
 )
-
-import matplotlib.pyplot as plt
-
 
 # ---------------------------------------------------------------------------
 # Configuration

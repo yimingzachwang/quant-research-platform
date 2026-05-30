@@ -2,14 +2,12 @@
 
 import pandas as pd
 import pytest
-
 from src.portfolio.alignment import align_prices, align_returns
 from src.portfolio.panel import (
     universe_momentum,
     universe_returns,
     universe_rolling_volatility,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

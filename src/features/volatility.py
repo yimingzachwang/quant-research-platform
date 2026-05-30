@@ -67,7 +67,7 @@ def downside_volatility(
     """
     downside = returns.clip(upper=threshold) - threshold
 
-    def _semi_std(x: "pd.Series") -> float:
+    def _semi_std(x: pd.Series) -> float:
         neg = x[x < 0]
         return float(neg.std()) if len(neg) >= 2 else float("nan")
 
@@ -170,7 +170,7 @@ def vol_percentile(
     """
     inner = rolling_volatility(returns, vol_window, annualize=True)
 
-    def _pctrank(x: "pd.Series") -> float:
+    def _pctrank(x: pd.Series) -> float:
         current = x.iloc[-1]
         if pd.isna(current) or len(x) <= 1:
             return float("nan")

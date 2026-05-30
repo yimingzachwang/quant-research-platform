@@ -14,17 +14,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
-from src.ml.feature_matrix import build_feature_matrix
 from src.ml.labels import forward_returns
 from src.ml.models.linear import LinearRegressionModel, RidgeRegressionModel
-from src.ml.signals.prediction import sign_signal, threshold_signal
+from src.ml.signals.prediction import sign_signal
 from src.portfolio.portfolio_backtest import run_portfolio_backtest
 from src.strategies.ml_strategy import MLStrategy
 from src.strategies.runner import run_strategy
 from src.validation.splits import rolling_time_splits
 from src.validation.walk_forward import run_walk_forward_validation
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures / helpers

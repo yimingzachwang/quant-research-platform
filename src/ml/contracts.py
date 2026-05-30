@@ -45,7 +45,7 @@ class PredictionSeries:
 
 def validate_prediction_index_alignment(
     predictions: PredictionSeries,
-    dataset: "SupervisedDataset",
+    dataset: SupervisedDataset,
 ) -> list[str]:
     """Advisory alignment check between prediction outputs and a dataset.
 

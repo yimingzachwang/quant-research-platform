@@ -5,14 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.diagnostics.prediction import (
     information_coefficient,
     prediction_correlation,
     prediction_quantiles,
     rolling_directional_accuracy,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

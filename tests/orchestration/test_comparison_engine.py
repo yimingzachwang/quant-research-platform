@@ -17,17 +17,11 @@ import json
 import re
 
 import pytest
-
 from src.orchestration.api.schemas import ComparativeReview
 from src.orchestration.context.context_builder import build_context
 from src.orchestration.llm.comparison_engine import (
     COMPARISON_VERSION,
     _build_comparative_payload,
-    _compare_failure_modes,
-    _compare_features,
-    _compare_ml,
-    _compare_performance,
-    _compare_validation,
     _compute_comparison_hash,
     _delta,
     _parse_comparative_review,

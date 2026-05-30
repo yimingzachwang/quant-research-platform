@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from src.reporting.report_spec import (
     AUDIT_REPORT,
     COMPACT_REPORT,
@@ -13,7 +12,6 @@ from src.reporting.report_spec import (
     FULL_DEMO_REPORT,
     ResearchReportSpec,
 )
-
 
 # ---------------------------------------------------------------------------
 # ResearchReportSpec — dataclass properties
@@ -130,8 +128,12 @@ class TestPresets:
 
     def test_all_six_presets_are_distinct(self):
         from src.reporting.report_spec import (
-            AUDIT_REPORT, CANONICAL_SHOWCASE, COMPACT_REPORT,
-            DIAGNOSTICS_REPORT, FULL_DEMO_REPORT, STANDARD_REPORT,
+            AUDIT_REPORT,
+            CANONICAL_SHOWCASE,
+            COMPACT_REPORT,
+            DIAGNOSTICS_REPORT,
+            FULL_DEMO_REPORT,
+            STANDARD_REPORT,
         )
         presets = [FULL_DEMO_REPORT, COMPACT_REPORT, DIAGNOSTICS_REPORT,
                    AUDIT_REPORT, STANDARD_REPORT, CANONICAL_SHOWCASE]
@@ -145,7 +147,6 @@ class TestPresets:
 
 def _make_minimal_artefacts(**overrides):
     """Build a MagicMock ExperimentArtefacts for markdown rendering tests."""
-    from pathlib import Path
 
     m = MagicMock()
     m.metadata = {
@@ -531,6 +532,7 @@ class TestFigureCaptions:
 
     def test_figures_renders_caption_below_image(self):
         from pathlib import Path
+
         from src.reporting.markdown import _figures
         caps = {"My Plot": "This is the caption for the plot."}
         md = _figures([("My Plot", Path("figures/my_plot.png"))], captions=caps)
@@ -540,6 +542,7 @@ class TestFigureCaptions:
 
     def test_figures_no_caption_when_not_in_dict(self):
         from pathlib import Path
+
         from src.reporting.markdown import _figures
         caps = {"Other Plot": "Some caption."}
         md = _figures([("My Plot", Path("figures/my_plot.png"))], captions=caps)
@@ -548,6 +551,7 @@ class TestFigureCaptions:
 
     def test_figures_no_caption_when_captions_none(self):
         from pathlib import Path
+
         from src.reporting.markdown import _figures
         md = _figures([("My Plot", Path("figures/my_plot.png"))], captions=None)
         assert "## Figures" in md
@@ -731,8 +735,8 @@ class TestDefaultPreset:
         return render_report(arts, [], "ts", "1", report_spec=spec)
 
     def test_none_resolves_to_standard_not_full_demo(self):
-        from src.reporting.report_spec import FULL_DEMO_REPORT, STANDARD_REPORT
         from src.reporting.markdown import render_report
+        from src.reporting.report_spec import FULL_DEMO_REPORT, STANDARD_REPORT
         arts = _make_minimal_artefacts()
         arts.metadata["config_hash"] = "abc123"
         md_none = render_report(arts, [], "ts", "1", report_spec=None)
@@ -766,6 +770,7 @@ class TestDefaultPreset:
     def test_standard_report_is_default(self):
         # The module docstring and code both document STANDARD_REPORT as default
         import inspect
+
         from src.reporting import markdown
         src = inspect.getsource(markdown.render_report)
         assert "STANDARD_REPORT" in src
@@ -829,8 +834,12 @@ class TestPortfolioProcessFlag:
 
     def test_both_flags_independent_in_all_presets(self):
         from src.reporting.report_spec import (
-            AUDIT_REPORT, CANONICAL_SHOWCASE, COMPACT_REPORT,
-            DIAGNOSTICS_REPORT, FULL_DEMO_REPORT, STANDARD_REPORT,
+            AUDIT_REPORT,
+            CANONICAL_SHOWCASE,
+            COMPACT_REPORT,
+            DIAGNOSTICS_REPORT,
+            FULL_DEMO_REPORT,
+            STANDARD_REPORT,
         )
         for preset in [STANDARD_REPORT, CANONICAL_SHOWCASE, DIAGNOSTICS_REPORT,
                        AUDIT_REPORT, FULL_DEMO_REPORT]:
@@ -884,8 +893,12 @@ class TestSpecNameResolution:
     def test_all_six_named_presets_resolve(self):
         from src.reporting.report_builder import _resolve_spec_name
         from src.reporting.report_spec import (
-            AUDIT_REPORT, CANONICAL_SHOWCASE, COMPACT_REPORT,
-            DIAGNOSTICS_REPORT, FULL_DEMO_REPORT, STANDARD_REPORT,
+            AUDIT_REPORT,
+            CANONICAL_SHOWCASE,
+            COMPACT_REPORT,
+            DIAGNOSTICS_REPORT,
+            FULL_DEMO_REPORT,
+            STANDARD_REPORT,
         )
         expected = {
             STANDARD_REPORT: "STANDARD_REPORT",
@@ -908,7 +921,8 @@ class TestFrontendContract:
         import tempfile
         from pathlib import Path
         from unittest.mock import MagicMock
-        from src.reporting.report_builder import _write_report_manifest, ReportPaths
+
+        from src.reporting.report_builder import ReportPaths, _write_report_manifest
         from src.reporting.report_spec import STANDARD_REPORT
 
         effective_spec = spec if spec is not None else STANDARD_REPORT
@@ -1018,7 +1032,9 @@ class TestPresetIdentityCleanup:
 
     def test_three_tier_narrative_progression(self):
         from src.reporting.report_spec import (
-            CANONICAL_SHOWCASE, DIAGNOSTICS_REPORT, STANDARD_REPORT,
+            CANONICAL_SHOWCASE,
+            DIAGNOSTICS_REPORT,
+            STANDARD_REPORT,
         )
         # STANDARD: no diagnostics, no provenance
         assert STANDARD_REPORT.include_diagnostics is False

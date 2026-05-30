@@ -5,17 +5,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.experiments.config import ExperimentSpec
 from src.experiments.results import ExperimentResult
 from src.experiments.tracking import load_run, save_run
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -1,5 +1,6 @@
 """Intent parsing layer for the orchestration natural-language interface."""
 
+from src.orchestration.intents.intent_parser import parse
 from src.orchestration.intents.intent_schema import (
     BuildContextIntent,
     BuildEvolutionChainIntent,
@@ -13,7 +14,6 @@ from src.orchestration.intents.intent_schema import (
     ReviewExperimentIntent,
     UnrecognisedIntent,
 )
-from src.orchestration.intents.intent_parser import parse
 
 __all__ = [
     "parse",

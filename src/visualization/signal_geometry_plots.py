@@ -14,20 +14,19 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import numpy as np
+import pandas as pd
+
 from src.visualization.styles import (
     COLORS,
     FIG_HEIGHT_STANDARD,
-    FIG_HEIGHT_TALL,
-    FIG_WIDTH_FULL,
     label_axes,
     make_figure,
 )
+from src.visualization.typography import get_typography
 from src.visualization.utils import save_figure
-from src.visualization.typography import get_typography, scale_dynamic_fontsize
 
 # Ordered α palette: darker = more regularised (α=0.5), lighter = less (α=0.01)
 _ALPHA_PALETTE = {
@@ -89,13 +88,13 @@ def plot_dispersion_sweep(
 
     x = np.arange(len(labels))
     bars_std = ax_std.bar(x, cs_std, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5)
-    for bar, val in zip(bars_std, cs_std):
+    for bar, val in zip(bars_std, cs_std, strict=False):
         if not math.isnan(val):
             ax_std.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(cs_std, default=0) * 0.02,
                         f"{val:.4f}", ha="center", va="bottom", fontsize=_t.annotation)
 
     bars_spread = ax_spread.bar(x, cs_spread, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5)
-    for bar, val in zip(bars_spread, cs_spread):
+    for bar, val in zip(bars_spread, cs_spread, strict=False):
         if not math.isnan(val):
             ax_spread.text(bar.get_x() + bar.get_width() / 2,
                            bar.get_height() + max(cs_spread, default=0) * 0.02,
@@ -150,7 +149,7 @@ def plot_dispersion_evolution(
     labels = list(cs_std_by_alpha.keys())
     colors = _alpha_colors(labels)
 
-    for lbl, color in zip(labels, colors):
+    for lbl, color in zip(labels, colors, strict=False):
         series = cs_std_by_alpha[lbl]
         if series is None or series.empty:
             continue
@@ -226,7 +225,7 @@ def plot_calibration_sweep(
     bar_width = total_width / n_alpha
     x = np.arange(n_q)
 
-    for i, (lbl, color) in enumerate(zip(labels, colors)):
+    for i, (lbl, color) in enumerate(zip(labels, colors, strict=False)):
         d = calibration_by_alpha[lbl]
         qr = d.get("quintile_returns")
         if qr is None:
@@ -235,7 +234,7 @@ def plot_calibration_sweep(
             qr = pd.Series(qr)
         vals = [float(qr.get(q, float("nan"))) for q in q_labels]
         offset = (i - n_alpha / 2 + 0.5) * bar_width
-        bars = ax.bar(x + offset, vals, width=bar_width * 0.9, color=color, alpha=0.8,
+        ax.bar(x + offset, vals, width=bar_width * 0.9, color=color, alpha=0.8,
                       edgecolor="white", linewidth=0.4, label=lbl)
 
     ax.axhline(0.0, color=COLORS["grid"], linewidth=0.8, linestyle="--")
@@ -360,7 +359,7 @@ def plot_robustness_tradeoff(
     labels = list(summary_by_alpha.keys())
     colors = _alpha_colors(labels)
 
-    for lbl, color in zip(labels, colors):
+    for lbl, color in zip(labels, colors, strict=False):
         d = summary_by_alpha[lbl]
         x = d.get("mean_cs_std", float("nan"))
         y = d.get("oos_mean_sharpe", float("nan"))
@@ -423,7 +422,7 @@ def plot_turnover_by_alpha(
     labels = list(turnover_by_alpha.keys())
     colors = _alpha_colors(labels)
 
-    for lbl, color in zip(labels, colors):
+    for lbl, color in zip(labels, colors, strict=False):
         series = turnover_by_alpha[lbl]
         if series is None or series.empty:
             continue
@@ -495,7 +494,7 @@ def plot_intrabasket_geometry(
     ]:
         bars = ax.bar(x, vals, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5)
         max_val = max((v for v in vals if not math.isnan(v)), default=0)
-        for bar, val in zip(bars, vals):
+        for bar, val in zip(bars, vals, strict=False):
             if not math.isnan(val):
                 ax.text(bar.get_x() + bar.get_width() / 2,
                         bar.get_height() + max_val * 0.02,
@@ -553,7 +552,7 @@ def plot_concentration_emergence(
     labels = list(hhi_by_alpha.keys())
     colors = _alpha_colors(labels)
 
-    for lbl, color in zip(labels, colors):
+    for lbl, color in zip(labels, colors, strict=False):
         series = hhi_by_alpha[lbl]
         if series is None or series.empty:
             continue

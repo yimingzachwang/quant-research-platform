@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -254,17 +255,17 @@ def build_summary_df(study_data: dict) -> pd.DataFrame:
 def generate_comparative_figures(study_data: dict, summary_df: pd.DataFrame,
                                    output_dir: Path) -> dict[str, Path]:
     """Generate all comparative figures; return name → saved path dict."""
-    from src.visualization.styles import apply_research_style
     from src.visualization.allocation_comparison_plots import (
+        plot_allocation_metrics_bar,
+        plot_breadth_entropy_comparison,
+        plot_calibration_comparison,
+        plot_concentration_vs_temperature,
         plot_equity_comparison,
         plot_hhi_comparison,
-        plot_breadth_entropy_comparison,
-        plot_turnover_comparison,
         plot_sharpe_vs_concentration,
-        plot_allocation_metrics_bar,
-        plot_concentration_vs_temperature,
-        plot_calibration_comparison,
+        plot_turnover_comparison,
     )
+    from src.visualization.styles import apply_research_style
 
     apply_research_style(profile="report")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -288,7 +289,7 @@ def generate_comparative_figures(study_data: dict, summary_df: pd.DataFrame,
     hhi_dict: dict[str, pd.Series] = {}
     breadth_dict: dict[str, pd.Series] = {}
     eff_n_dict: dict[str, pd.Series] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         if d["weights"] is not None:
             conc = compute_concentration_series(d["weights"])
             lbl = d["label"]
@@ -306,7 +307,7 @@ def generate_comparative_figures(study_data: dict, summary_df: pd.DataFrame,
 
     # Turnover comparison
     turnover_dict: dict[str, pd.Series] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         if d["weights"] is not None:
             to = compute_turnover_series(d["weights"])
             turnover_dict[d["label"]] = to[to > 0]
@@ -335,7 +336,7 @@ def generate_comparative_figures(study_data: dict, summary_df: pd.DataFrame,
 
     # Calibration comparison
     calib_dict: dict[str, dict] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         ad = d["allocation_diagnostics"] or {}
         cc = ad.get("confidence_calibration")
         # Try to reconstruct a minimal calibration_data dict from JSON summaries
@@ -572,7 +573,7 @@ def write_synthesis_report(
 
     # Extract calibration from summary
     has_calib = False
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         ad = d["allocation_diagnostics"] or {}
         cc = ad.get("confidence_calibration")
         if cc:

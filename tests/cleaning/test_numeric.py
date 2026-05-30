@@ -3,8 +3,6 @@
 import math
 
 import pandas as pd
-import pytest
-
 from src.cleaning.numeric import replace_inf
 
 

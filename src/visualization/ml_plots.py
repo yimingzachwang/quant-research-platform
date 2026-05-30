@@ -16,23 +16,25 @@ portfolio backtest output) to avoid a naming collision on import.
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import numpy as np
+import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
-    FIG_WIDTH_FULL,
-    FIG_WIDTH_HALF,
     FIG_HEIGHT_STANDARD,
+    FIG_WIDTH_FULL,
     format_pct_axis,
     label_axes,
     make_figure,
 )
+from src.visualization.typography import (
+    get_typography,
+    heatmap_cell_fontsize,
+    scale_dynamic_fontsize,
+)
 from src.visualization.utils import save_figure
-from src.visualization.typography import get_typography, heatmap_cell_fontsize, scale_dynamic_fontsize
-
 
 # ---------------------------------------------------------------------------
 # Presentation-layer feature labels — single source of truth via families
@@ -53,9 +55,9 @@ def _feat_label(name: str) -> str:
 
 
 def _bar_annotation_ylim(
-    vals: "np.ndarray",
+    vals: np.ndarray,
     padding_frac: float = 0.20,
-) -> "tuple[float, float]":
+) -> tuple[float, float]:
     """Return (ymin, ymax) with symmetric annotation headroom for annotated bar charts.
 
     Ensures top/bottom annotations cannot clip against axis boundaries.
@@ -235,9 +237,9 @@ _STRESS_GAP_DAYS = 10   # merge two runs separated by a gap ≤ this many tradin
 
 
 def _shade_stress_regimes(
-    ax: "plt.Axes",
+    ax: plt.Axes,
     dates: pd.DatetimeIndex,
-    stress_mask: "pd.Series | None",
+    stress_mask: pd.Series | None,
 ) -> None:
     """Shade high-stress periods on ax as restrained light-grey bands.
 
@@ -290,7 +292,7 @@ def plot_ic_regime(
     ic_daily: pd.Series,
     title: str = "Rolling IC Through Time",
     save_path: str | None = None,
-    stress_mask: "pd.Series | None" = None,
+    stress_mask: pd.Series | None = None,
 ) -> plt.Figure:
     """Continuous 63-day rolling IC for regime visibility.
 
@@ -350,7 +352,7 @@ def plot_rolling_directional_accuracy(
     da_series: pd.Series,
     title: str = "Rolling Directional Accuracy (126d)",
     save_path: str | None = None,
-    stress_mask: "pd.Series | None" = None,
+    stress_mask: pd.Series | None = None,
     is_panel: bool = False,
 ) -> plt.Figure:
     """126-day rolling directional accuracy / IC consistency through time.
@@ -463,7 +465,7 @@ def plot_split_metric_stability(
     )
 
     _t = get_typography()
-    for bar, v in zip(bars, vals_np):
+    for bar, v in zip(bars, vals_np, strict=False):
         if v >= 0:
             y, va = v + 0.025, "bottom"
         else:
@@ -567,7 +569,7 @@ def plot_coefficient_stability(
 def plot_feature_correlation_heatmap(
     corr_df: pd.DataFrame,
     title: str = "Feature Correlation Matrix",
-    feature_families: "dict[str, list[str]] | None" = None,
+    feature_families: dict[str, list[str]] | None = None,
     save_path: str | None = None,
 ) -> plt.Figure:
     """Pairwise Pearson correlation heatmap for a feature matrix.
@@ -870,7 +872,6 @@ def plot_coefficient_evolution(
     # 300 DPI for this publication-quality appendix figure
     fig._save_dpi = 300  # type: ignore[attr-defined]
     if save_path:
-        from src.visualization.utils import save_figure as _sf
         fig.savefig(save_path, bbox_inches="tight", dpi=300)
     return fig
 
@@ -1232,12 +1233,12 @@ def plot_feature_family_ic(
     offsets = np.linspace(-(n_families - 1) / 2, (n_families - 1) / 2, n_families) * bar_width
 
     _t = get_typography()
-    for offset, (family, ic_series) in zip(offsets, family_ic.items()):
+    for offset, (family, ic_series) in zip(offsets, family_ic.items(), strict=False):
         color = FEATURE_FAMILY_COLORS.get(family, COLORS["neutral"])
         values = ic_series.values
         bars = ax.bar(x + offset, values, bar_width * 0.9, label=family,
                       color=color, alpha=0.8, linewidth=0)
-        for bar, v in zip(bars, values):
+        for bar, v in zip(bars, values, strict=False):
             if not np.isnan(v) and abs(v) > 0.01:
                 ax.text(
                     bar.get_x() + bar.get_width() / 2,
@@ -1369,7 +1370,7 @@ def plot_portfolio_concentration(
 
 def plot_ic_by_vol_regime(
     family_ic_by_regime: dict[str, dict[str, float]],
-    feature_families: "dict[str, list[str]] | None" = None,
+    feature_families: dict[str, list[str]] | None = None,
     title: str = "Feature Family IC by Volatility Regime",
     save_path: str | None = None,
 ) -> plt.Figure:
@@ -1420,6 +1421,7 @@ def plot_ic_by_vol_regime(
     high_vals = [high_ic.get(f, float("nan")) for f in all_fams]
     low_vals = [low_ic.get(f, float("nan")) for f in all_fams]
 
+    _t = get_typography()
     for i, fam in enumerate(all_fams):
         base_color = FEATURE_FAMILY_COLORS.get(fam, COLORS["neutral"])
         hv = high_vals[i]
@@ -1444,7 +1446,6 @@ def plot_ic_by_vol_regime(
                         f"{lv:+.3f}", ha="center",
                         va="bottom" if lv >= 0 else "top", fontsize=_t.small_annotation, color="#333333")
 
-    _t = get_typography()
     ax.axhline(0, color=COLORS["neutral"], linewidth=0.8, linestyle="--", alpha=0.7)
     ax.set_xticks(x)
     ax.set_xticklabels(all_fams, fontsize=_t.tick)
@@ -1511,7 +1512,7 @@ def plot_prediction_strength(
         matplotlib Figure.
     """
     group_means = prediction_strength.get("group_mean_returns") or {}
-    group_monthly: "pd.DataFrame | None" = prediction_strength.get("group_monthly")
+    group_monthly: pd.DataFrame | None = prediction_strength.get("group_monthly")
     is_monotonic = prediction_strength.get("is_monotonic")
     ls_spread = prediction_strength.get("ls_spread")
     horizon = prediction_strength.get("horizon", 21)
@@ -1535,7 +1536,7 @@ def plot_prediction_strength(
     x = np.arange(len(groups))
     _t = get_typography()
     bars = ax1.bar(x, means, color=bar_colors, alpha=0.82, linewidth=0, width=0.45)
-    for bar, val in zip(bars, means):
+    for bar, val in zip(bars, means, strict=False):
         if not np.isnan(val):
             ax1.text(
                 bar.get_x() + bar.get_width() / 2,
@@ -1611,7 +1612,7 @@ def plot_ranking_geometry(
     ranking_geo: dict,
     title: str = "Cross-Sectional Ranking Geometry",
     save_path: str | None = None,
-) -> "plt.Figure":
+) -> plt.Figure:
     """Four-panel ranking-state diagnostic covering signal geometry and temporal stability.
 
     Panel 1 — Prediction Dispersion (S1 + S5 combined):
@@ -1783,11 +1784,11 @@ def plot_ranking_geometry(
 
 
 def plot_feature_contribution_heatmap(
-    contribution_df: "pd.DataFrame",
-    feature_families: "dict[str, list[str]] | None" = None,
+    contribution_df: pd.DataFrame,
+    feature_families: dict[str, list[str]] | None = None,
     title: str = "Feature Contribution Through Time",
     save_path: str | None = None,
-) -> "plt.Figure":
+) -> plt.Figure:
     """Date × Feature contribution heatmap (Phase II, C1).
 
     Visualises realised predictive influence (coef × z-score) through time.
@@ -1903,11 +1904,11 @@ def plot_feature_contribution_heatmap(
 
 
 def plot_family_contribution_timeline(
-    family_contrib_df: "pd.DataFrame",
-    family_share_df: "pd.DataFrame",
+    family_contrib_df: pd.DataFrame,
+    family_share_df: pd.DataFrame,
     title: str = "Family Contribution Timeline",
     save_path: str | None = None,
-) -> "plt.Figure":
+) -> plt.Figure:
     """Two-panel family contribution timeline (Phase II, C2).
 
     Top panel: Signed rolling family contributions (line chart) — shows which
@@ -2006,12 +2007,12 @@ def plot_family_contribution_timeline(
 
 
 def plot_score_dispersion(
-    score_wide: "pd.DataFrame",
+    score_wide: pd.DataFrame,
     window: int = 63,
     title: str = "Score Dispersion & Ranking Conviction",
-    stress_mask: "pd.Series | None" = None,
+    stress_mask: pd.Series | None = None,
     save_path: str | None = None,
-) -> "plt.Figure":
+) -> plt.Figure:
     """Score-dispersion and ranking-conviction diagnostics for a cross-sectional portfolio.
 
     Replaces the degenerate N*/holdings-count panel (uninformative under hard

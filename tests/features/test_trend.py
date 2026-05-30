@@ -1,9 +1,7 @@
 """Tests for src/features/trend.py."""
 
-import numpy as np
 import pandas as pd
 import pytest
-
 from src.features.trend import ema, sma, sma_crossover, trend_strength
 
 

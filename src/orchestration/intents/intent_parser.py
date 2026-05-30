@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 from src.orchestration.intents.intent_schema import (
     BuildContextIntent,
@@ -38,7 +38,6 @@ from src.orchestration.intents.intent_schema import (
 )
 from src.orchestration.llm.llm_interface import call_llm
 from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC, PROVIDER_STUB
-
 
 # ---------------------------------------------------------------------------
 # Keyword pattern tables

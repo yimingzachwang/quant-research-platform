@@ -9,9 +9,6 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
-from typing import Any
-
-import pytest
 
 from src.orchestration.session.session_manager import (
     create_session,
@@ -30,7 +27,6 @@ from src.orchestration.utils.filesystem import (
     list_session_ids,
     session_json_path,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -778,13 +774,13 @@ class TestNonCoupling:
     def test_existing_api_functions_not_modified(self):
         """Spot-check that Phase 1-3 API functions still exist and are callable."""
         from src.orchestration.api.research_api import (
-            run_llm_review,
-            generate_iteration_proposal,
-            generate_experiment_draft,
-            validate_experiment_draft,
             approve_experiment_draft,
-            render_draft_to_yaml,
             build_research_evolution_chain,
+            generate_experiment_draft,
+            generate_iteration_proposal,
+            render_draft_to_yaml,
+            run_llm_review,
+            validate_experiment_draft,
         )
         for fn in [
             run_llm_review, generate_iteration_proposal, generate_experiment_draft,

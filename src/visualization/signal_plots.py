@@ -9,12 +9,10 @@ Read-only: no signal computation, no backtest execution.
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
-    format_pct_axis,
     label_axes,
     make_figure,
 )

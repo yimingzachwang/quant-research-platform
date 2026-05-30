@@ -9,8 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from src.orchestration.registry.experiment_registry import get_summary, list_summaries
 from src.orchestration.api.schemas import ExperimentSummary
+from src.orchestration.registry.experiment_registry import get_summary, list_summaries
 
 
 def compare_experiments(

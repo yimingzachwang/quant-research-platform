@@ -26,7 +26,6 @@ import yaml
 
 from src.core import DateRange, ExperimentContext, Horizon, Universe
 
-
 # ---------------------------------------------------------------------------
 # Phase D0: ExperimentSpec — typed, hashable experiment configuration
 # ---------------------------------------------------------------------------

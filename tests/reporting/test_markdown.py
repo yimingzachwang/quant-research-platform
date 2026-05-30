@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
-from src.reporting.markdown import render_report, _pipe_table, _label
-
+from src.reporting.markdown import _label, _pipe_table, render_report
 
 # ---------------------------------------------------------------------------
 # Helpers

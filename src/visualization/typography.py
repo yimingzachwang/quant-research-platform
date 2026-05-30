@@ -38,7 +38,6 @@ from dataclasses import dataclass
 
 from src.visualization.render_profiles import ARCHETYPE_DEFAULT, get_active_profile
 
-
 # ---------------------------------------------------------------------------
 # Typography scale dataclass
 # ---------------------------------------------------------------------------

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.app import app
 from src.orchestration.api.schemas import (
     ComparativeReview,

@@ -2,7 +2,6 @@
 
 import pandas as pd
 import pytest
-
 from src.experiments.config import ExperimentSpec
 from src.experiments.config_io import normalize_config
 from src.experiments.factory import (
@@ -18,7 +17,6 @@ from src.experiments.factory import (
 from src.strategies.baselines import BuyAndHoldStrategy, EqualWeightStrategy
 from src.strategies.momentum_rotation import MomentumRotationStrategy
 from src.validation.splits import TimeSplit
-
 
 # ---------------------------------------------------------------------------
 # Helpers

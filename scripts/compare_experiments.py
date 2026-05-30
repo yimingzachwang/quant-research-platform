@@ -8,6 +8,7 @@ Demonstrates the Phase D0 comparison workflow:
 Usage:
     python scripts/compare_experiments.py
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -19,22 +20,21 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import matplotlib
+
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt
+import pandas as pd
 from src.experiments.comparison import metrics_table, rank_experiments
 from src.experiments.registry import ExperimentRegistry
 from src.experiments.results import load_experiment
+from src.strategies.runner import StrategyResult
 from src.visualization.comparison_plots import (
     plot_metric_comparison,
     plot_metrics_table,
     plot_strategy_equity_curves,
 )
 from src.visualization.styles import apply_research_style
-from src.strategies.runner import StrategyResult
-
-import matplotlib.pyplot as plt
-import pandas as pd
-
 
 REGISTRY_PATH = Path("results/experiments/registry.json")
 OUTPUT_DIR = Path("results/comparisons")
@@ -42,7 +42,6 @@ OUTPUT_DIR = Path("results/comparisons")
 
 def _build_mock_strategy_results(experiments):
     """Convert ExperimentResult dict to StrategyResult-compatible dict for viz."""
-    from src.strategies.runner import StrategyResult
     out = {}
     for label, exp in experiments.items():
         out[label] = StrategyResult(

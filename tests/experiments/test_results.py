@@ -7,9 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.experiments.results import ExperimentResult, save_experiment
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

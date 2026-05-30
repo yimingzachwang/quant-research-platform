@@ -8,15 +8,12 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
-
 from src.ml.labels import (
     binary_direction_label,
     forward_returns,
     ranking_target,
     volatility_target,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

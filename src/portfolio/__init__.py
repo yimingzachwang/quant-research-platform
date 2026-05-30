@@ -1,11 +1,12 @@
 """Multi-asset portfolio research layer."""
 
 # Legacy stubs — preserved for compatibility
-from src.portfolio.interfaces import PortfolioConstraints, PortfolioConstructor
-from src.portfolio.placeholders import NoOpPortfolioConstructor
-
 # Alignment and loading
 from src.portfolio.alignment import align_prices, align_returns, load_universe
+
+# Allocation
+from src.portfolio.allocation import equal_weight, resample_weights_to_daily, volatility_scaled
+from src.portfolio.interfaces import PortfolioConstraints, PortfolioConstructor
 
 # Panel feature computation
 from src.portfolio.panel import (
@@ -14,18 +15,16 @@ from src.portfolio.panel import (
     universe_rolling_volatility,
     universe_rolling_zscore,
 )
+from src.portfolio.placeholders import NoOpPortfolioConstructor
+
+# Backtesting
+from src.portfolio.portfolio_backtest import PortfolioBacktestResult, run_portfolio_backtest
 
 # Cross-sectional ranking
 from src.portfolio.ranking import rank_assets, select_bottom_n, select_top_n
 
-# Allocation
-from src.portfolio.allocation import equal_weight, resample_weights_to_daily, volatility_scaled
-
 # Weighting policies
-from src.portfolio.weighting_policy import apply_weighting_policy, VALID_WEIGHTING_SCHEMES
-
-# Backtesting
-from src.portfolio.portfolio_backtest import PortfolioBacktestResult, run_portfolio_backtest
+from src.portfolio.weighting_policy import VALID_WEIGHTING_SCHEMES, apply_weighting_policy
 
 __all__ = [
     # legacy

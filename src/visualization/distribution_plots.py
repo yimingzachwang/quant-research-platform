@@ -15,14 +15,15 @@ import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
-    FIG_HEIGHT_HEATMAP,
     FIG_WIDTH_FULL,
-    FIG_WIDTH_HALF,
     format_pct_axis,
     label_axes,
     make_figure,
 )
-from src.visualization.typography import get_typography, heatmap_cell_fontsize, scale_dynamic_fontsize
+from src.visualization.typography import (
+    get_typography,
+    scale_dynamic_fontsize,
+)
 
 
 def plot_return_distribution(

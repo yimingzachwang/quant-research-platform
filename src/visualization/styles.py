@@ -13,8 +13,8 @@ Or use the context manager for isolated style scopes:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

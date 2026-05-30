@@ -14,14 +14,11 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import pytest
 import yaml
-
 from src.experiments.contracts import check_artefact_dir, check_ml_artefacts
 from src.experiments.orchestrator import run_experiment_from_config
 from src.reporting.report_builder import generate_experiment_report, load_experiment_artefacts
 from src.reporting.report_spec import COMPACT_REPORT, DIAGNOSTICS_REPORT
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -130,7 +127,7 @@ class TestV1Workflow:
         assert not (run.output_path / "ml_provenance.json").exists()
 
     def test_registry_entry_created(self, tmp_path: Path):
-        run = self._run(tmp_path)
+        self._run(tmp_path)
         registry_path = tmp_path / "results" / "registry.json"
         assert registry_path.exists()
         entries = json.loads(registry_path.read_text())
@@ -191,7 +188,7 @@ class TestV2Workflow:
         assert norm["version"] == "2"
 
     def test_registry_entry_created(self, tmp_path: Path):
-        run = self._run(tmp_path)
+        self._run(tmp_path)
         entries = json.loads((tmp_path / "results" / "registry.json").read_text())
         names = [e["experiment_name"] for e in entries]
         assert "wf_v2_test" in names
@@ -923,8 +920,9 @@ class TestInlineFigurePlacement:
         assert "## Figures" not in content
 
     def test_manifest_sections_rendered_populated(self, tmp_path: Path):
-        from src.reporting.report_spec import CANONICAL_SHOWCASE
         import json
+
+        from src.reporting.report_spec import CANONICAL_SHOWCASE
         _, paths = self._setup(tmp_path, CANONICAL_SHOWCASE)
         manifest = json.loads(paths.manifest.read_text())
         sections = manifest.get("sections_rendered", [])
@@ -963,9 +961,10 @@ class TestRunAndReportPreset:
         assert "## Diagnostics Appendix" not in content
 
     def test_run_and_report_manifest_has_report_spec_field(self, tmp_path: Path):
+        import json
+
         from src.experiments.orchestrator import run_and_report
         from src.reporting.report_spec import CANONICAL_SHOWCASE
-        import json
         p = _write_v2_wf_cfg(tmp_path)
         with patch(_PATCH, side_effect=_make_load_universe_patch(_PRICES_V2)):
             run, paths = run_and_report(

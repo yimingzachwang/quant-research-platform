@@ -15,7 +15,6 @@ from pathlib import Path
 from src.experiments.config_io import load_config
 from src.experiments.ml_config import validate_ml_config
 from src.orchestration.config_generation.draft_schema import (
-    DraftChange,
     DraftValidationResult,
     ExperimentDraft,
     apply_changes,

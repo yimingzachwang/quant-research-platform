@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
-
 from src.ml.panel import build_panel_feature_matrix, compute_cross_sectional_ic
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

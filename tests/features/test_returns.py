@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.features.returns import compute_cumulative_returns, compute_log_returns, compute_returns
 
 

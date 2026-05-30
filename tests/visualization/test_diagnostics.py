@@ -1,13 +1,13 @@
 """Tests for src/visualization/diagnostics.py and the five new portfolio plot functions."""
 
 import matplotlib
+
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-import matplotlib.pyplot as plt
-
 from src.visualization.diagnostics import (
     compute_concentration_metrics,
     compute_turnover,
@@ -20,7 +20,6 @@ from src.visualization.portfolio_plots import (
     plot_weight_concentration,
     plot_weight_heatmap,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

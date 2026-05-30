@@ -1,14 +1,14 @@
 """Smoke tests for src/visualization/validation_plots.py."""
 
 import matplotlib
+
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-import matplotlib.pyplot as plt
-
-from src.strategies.baselines import EqualWeightStrategy, BuyAndHoldStrategy
+from src.strategies.baselines import BuyAndHoldStrategy, EqualWeightStrategy
 from src.validation.splits import rolling_time_splits
 from src.validation.walk_forward import WalkForwardResult, run_walk_forward_validation
 from src.visualization.validation_plots import (
@@ -18,7 +18,6 @@ from src.visualization.validation_plots import (
     plot_walk_forward_equity,
     plot_walk_forward_stitched,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

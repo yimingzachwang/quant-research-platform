@@ -13,9 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import pandas as pd
 
-from src.portfolio.alignment import load_universe, align_prices
+import matplotlib
+from src.portfolio.alignment import align_prices, load_universe
 from src.portfolio.panel import universe_returns
 from src.strategies.momentum_rotation import MomentumRotationStrategy
 from src.strategies.runner import run_strategy
@@ -33,7 +33,6 @@ from src.visualization.portfolio_plots import (
 )
 from src.visualization.styles import apply_research_style
 
-import matplotlib
 matplotlib.use("Agg")
 
 

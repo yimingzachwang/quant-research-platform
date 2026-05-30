@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-
+import pytest
 from src.visualization.render_profiles import (
     ARCHETYPE_BAR,
     ARCHETYPE_CONTRIBUTION,
@@ -25,7 +24,6 @@ from src.visualization.render_profiles import (
     set_active_profile,
 )
 from src.visualization.styles import apply_research_style, make_figure
-
 
 # ---------------------------------------------------------------------------
 # Fixtures — ensure clean state between tests

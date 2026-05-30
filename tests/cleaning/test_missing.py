@@ -4,7 +4,6 @@ import math
 
 import pandas as pd
 import pytest
-
 from src.cleaning.missing import forward_fill_limited
 
 

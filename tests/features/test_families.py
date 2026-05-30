@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from src.features.families import (
     FEATURE_FAMILIES,
     FEATURE_FAMILY_COLORS,
@@ -12,7 +11,6 @@ from src.features.families import (
     get_family_for_type,
     group_by_family,
 )
-
 
 # ---------------------------------------------------------------------------
 # Registry structure

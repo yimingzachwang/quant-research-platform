@@ -5,9 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from src.experiments.config import ExperimentSpec, experiment_hash
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

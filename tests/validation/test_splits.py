@@ -2,13 +2,11 @@
 
 import pandas as pd
 import pytest
-
 from src.validation.splits import (
     TimeSplit,
     expanding_time_splits,
     rolling_time_splits,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -133,14 +131,14 @@ def test_rolling_step_defaults_to_test_months(ten_year_index: pd.DatetimeIndex) 
     s1 = rolling_time_splits(ten_year_index, train_months=36, test_months=12, step_months=None)
     s2 = rolling_time_splits(ten_year_index, train_months=36, test_months=12, step_months=12)
     assert len(s1) == len(s2)
-    for a, b in zip(s1, s2):
+    for a, b in zip(s1, s2, strict=False):
         assert a.test_start == b.test_start
 
 
 def test_rolling_gap_increases_separation(ten_year_index: pd.DatetimeIndex) -> None:
     no_gap = rolling_time_splits(ten_year_index, train_months=36, test_months=12, gap_days=0)
     with_gap = rolling_time_splits(ten_year_index, train_months=36, test_months=12, gap_days=30)
-    for ng, wg in zip(no_gap, with_gap):
+    for ng, wg in zip(no_gap, with_gap, strict=False):
         # test_start should be at least as late with gap as without
         assert wg.test_start >= ng.test_start
 

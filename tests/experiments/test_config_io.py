@@ -5,9 +5,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from src.experiments.config_io import load_config, normalize_config, validate_config
-
 
 # ---------------------------------------------------------------------------
 # Helpers

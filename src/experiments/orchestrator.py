@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import math
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -38,9 +38,7 @@ import pandas as pd
 
 from src.experiments.config import ExperimentSpec
 from src.experiments.config_io import load_config, normalize_config, validate_config
-from src.experiments.contracts import ARTEFACT_VERSION
 from src.experiments.factory import (
-    ValidationConfig,
     build_experiment_spec,
     build_strategy,
     build_universe_spec,
@@ -53,7 +51,6 @@ from src.experiments.tracking import save_run
 from src.portfolio.alignment import align_prices, load_universe
 from src.strategies.runner import StrategyResult, run_strategy
 from src.validation.walk_forward import WalkForwardResult, run_walk_forward_validation
-
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -80,10 +77,10 @@ def _build_plots(
     backtest_df: pd.DataFrame,
     wf: WalkForwardResult | None,
     strategy_name: str,
-    weights: "pd.DataFrame | None" = None,
-    ml_data: "dict | None" = None,
-    universe_data: "dict | None" = None,
-    stress_mask: "pd.Series | None" = None,
+    weights: pd.DataFrame | None = None,
+    ml_data: dict | None = None,
+    universe_data: dict | None = None,
+    stress_mask: pd.Series | None = None,
     profile: str = "report",
 ) -> dict:
     """Generate matplotlib figures; return name → Figure dict.
@@ -107,15 +104,13 @@ def _build_plots(
         ml_coefficient_stability    — mean±std bar chart per feature
         ml_signal_turnover          — per-period signal turnover
     """
-    import matplotlib.pyplot as plt
-    from src.visualization.styles import apply_research_style
-
     from src.visualization.backtest_plots import (
         plot_equity_and_drawdown,
         plot_rolling_sharpe,
         plot_rolling_volatility,
     )
     from src.visualization.portfolio_plots import plot_turnover, plot_weights
+    from src.visualization.styles import apply_research_style
     from src.visualization.validation_plots import (
         plot_split_sharpes,
         plot_walk_forward_stitched,
@@ -147,8 +142,8 @@ def _build_plots(
     # --- Walk-forward set ---
     if wf is not None and wf.n_splits > 0:
         from src.visualization.validation_plots import (
-            plot_walk_forward_equity,
             plot_train_vs_test,
+            plot_walk_forward_equity,
             plot_walk_forward_timeline,
         )
         plots["walk_forward_stitched"] = plot_walk_forward_stitched(
@@ -312,8 +307,8 @@ def _build_plots(
         if fc_data:
             try:
                 from src.visualization.ml_plots import (
-                    plot_feature_contribution_heatmap,
                     plot_family_contribution_timeline,
+                    plot_feature_contribution_heatmap,
                 )
                 contrib_df = fc_data.get("contribution_df")
                 if contrib_df is not None and not contrib_df.empty:
@@ -343,8 +338,8 @@ def _build_plots(
             try:
                 from src.visualization.allocation_plots import (
                     plot_concentration_evolution,
-                    plot_prediction_dispersion,
                     plot_confidence_calibration,
+                    plot_prediction_dispersion,
                 )
                 ar_weights = alloc_research.get("weights")
                 if ar_weights is not None and not ar_weights.empty:
@@ -419,7 +414,7 @@ def _build_plots(
                 and "monthly_coverage_df" in universe_data):
             # Use the raw prices implied by the monthly coverage index + asset count
             # Build a proxy prices frame from coverage (availability = notna proxy)
-            mc = universe_data["monthly_coverage_df"]
+            universe_data["monthly_coverage_df"]
             # Reconstruct daily availability from asset_coverage for the timeline
             asset_cov = universe_data.get("asset_coverage") or []
             if asset_cov and "rolling_vol_df" in universe_data:
@@ -854,7 +849,7 @@ def _sanitize_for_json(obj: Any) -> Any:
     return obj
 
 
-def _write_split_metrics(wf: "WalkForwardResult", out_path: Path) -> None:
+def _write_split_metrics(wf: WalkForwardResult, out_path: Path) -> None:
     """Persist per-split metrics to diagnostics/split_metrics.json.
 
     Written for every experiment where walk-forward validation ran.
@@ -929,7 +924,7 @@ def _detect_drawdown_windows(
 def _write_research_artefacts(
     prices: pd.DataFrame,
     strategy: Any,
-    sr: "StrategyResult",
+    sr: StrategyResult,
     out_path: Path,
 ) -> None:
     """Persist intermediate research artefacts to research/ subdirectory.
@@ -989,8 +984,8 @@ def _write_research_artefacts(
     # Momentum scores per rebalance date — strategy-specific
     momentum_by_date: dict[str, dict[str, float]] = {}
     try:
-        from src.strategies.momentum_rotation import MomentumRotationStrategy
         from src.portfolio.panel import universe_momentum
+        from src.strategies.momentum_rotation import MomentumRotationStrategy
 
         if isinstance(strategy, MomentumRotationStrategy):
             mom = universe_momentum(prices, window=strategy.lookback)
@@ -1053,7 +1048,7 @@ def _write_research_artefacts(
 
 
 def _write_backtest_diagnostics(
-    sr: "StrategyResult",
+    sr: StrategyResult,
     out_path: Path,
 ) -> None:
     """Persist rolling backtest diagnostics to diagnostics/backtest_diagnostics.json.
@@ -1106,9 +1101,9 @@ def _write_backtest_diagnostics(
 
 
 def _write_ml_diagnostics(
-    sr: "StrategyResult",
+    sr: StrategyResult,
     model_type: str,
-    wf: "WalkForwardResult | None",
+    wf: WalkForwardResult | None,
     out_path: Path,
 ) -> None:
     """Persist ML-specific diagnostics to diagnostics/ml_diagnostics.json.
@@ -1157,10 +1152,10 @@ def _write_ml_diagnostics(
 
 
 def _write_allocation_diagnostics(
-    weights: "pd.DataFrame",
+    weights: pd.DataFrame,
     ml_spec: Any,
     out_path: Path,
-    alloc_research: "dict | None" = None,
+    alloc_research: dict | None = None,
 ) -> None:
     """Write diagnostics/allocation_diagnostics.json for portfolio construction research.
 
@@ -1191,7 +1186,7 @@ def _write_allocation_diagnostics(
 
     # Active rows only (at least one non-zero weight)
     active_mask = (abs_w > 1e-10).any(axis=1)
-    w_active = w.loc[active_mask]
+    w.loc[active_mask]
     abs_active = abs_w.loc[active_mask]
 
     n_periods = int(active_mask.sum())
@@ -1210,7 +1205,7 @@ def _write_allocation_diagnostics(
     effective_breadth = float((1.0 / hhi_series.replace(0.0, float("nan"))).mean())
 
     # Shannon entropy of weight distribution → effective N = exp(H)
-    def _row_entropy(row: "pd.Series") -> float:
+    def _row_entropy(row: pd.Series) -> float:
         pos = row[row > 1e-10]
         if pos.empty:
             return 0.0
@@ -1605,7 +1600,7 @@ def _write_feature_engineering_artefacts(
 def _extract_linear_coef(
     model_wrapper: Any,
     feature_names: list[str],
-) -> "dict[str, float] | None":
+) -> dict[str, float] | None:
     """Extract coefficients from a linear sklearn model wrapper (e.g. RidgeRegressionModel).
 
     model_wrapper is strategy._model (the wrapper class), which holds the actual
@@ -1619,18 +1614,18 @@ def _extract_linear_coef(
         coef = sk.coef_
         if coef.ndim != 1 or len(coef) != len(feature_names):
             return None
-        return {name: float(v) for name, v in zip(feature_names, coef)}
+        return {name: float(v) for name, v in zip(feature_names, coef, strict=False)}
     except Exception:
         return None
 
 
 def _collect_wf_coefficients(
     prices: pd.DataFrame,
-    wf: "WalkForwardResult",
+    wf: WalkForwardResult,
     ml_spec: Any,
     is_panel: bool = False,
-    tickers: "list[str] | None" = None,
-) -> "pd.DataFrame | None":
+    tickers: list[str] | None = None,
+) -> pd.DataFrame | None:
     """Re-fit on each split's training window to collect per-split coefficients.
 
     Lightweight second pass: only fitting, no backtest.  Returns a
@@ -1647,7 +1642,6 @@ def _collect_wf_coefficients(
             train_prices = prices.loc[split.train_start : split.train_end]
             if is_panel and tickers:
                 from src.experiments.ml_factory import build_panel_ml_strategy
-                from src.ml.panel import build_panel_feature_matrix
                 strategy_tmp = build_panel_ml_strategy(
                     ml_spec.features, ml_spec.labels, ml_spec.model, ml_spec.signal,
                     tickers,
@@ -1787,7 +1781,7 @@ def _prepare_prediction_strength(
 
 def _prepare_allocation_research_diagnostics(
     ml_data: dict,
-    weights: "pd.DataFrame | None",
+    weights: pd.DataFrame | None,
     prices: pd.DataFrame,
     ml_spec: Any,
     horizon: int = 21,
@@ -1810,6 +1804,7 @@ def _prepare_allocation_research_diagnostics(
         JSON persistence. Empty dict if score_wide is unavailable.
     """
     import math as _math
+
     import numpy as _np
 
     score_wide = ml_data.get("score_wide")
@@ -1954,7 +1949,6 @@ def _prepare_feature_contributions(
         contribution_volatility    dict  — per-feature contribution std
         most_volatile_feature      str   — feature with highest contribution std
     """
-    import numpy as _np
 
     result: dict = {}
 
@@ -2129,7 +2123,7 @@ def _prepare_ranking_geometry(
         n_assets = sw.shape[1]
         n_top = max(1, n_assets // 3)
 
-        def _top_bot_spread(row: "pd.Series") -> float:
+        def _top_bot_spread(row: pd.Series) -> float:
             vals = row.dropna().sort_values(ascending=False)
             if len(vals) < 2 * n_top:
                 return float("nan")
@@ -2154,7 +2148,7 @@ def _prepare_ranking_geometry(
             if len(common_idx) >= 21:
                 scores_al = sw.loc[common_idx, tickers]
                 fwd_al = fwd_panel.loc[common_idx, tickers]
-                n_top_r = max(1, len(tickers) // 3)
+                max(1, len(tickers) // 3)
 
                 def _realized_spread(i: int) -> float:
                     row_s = scores_al.iloc[i].dropna().sort_values(ascending=False)
@@ -2217,11 +2211,11 @@ def _prepare_ranking_geometry(
 
 def _collect_wf_feature_ic(
     prices: pd.DataFrame,
-    wf: "WalkForwardResult",
+    wf: WalkForwardResult,
     ml_spec: Any,
     is_panel: bool = False,
-    tickers: "list[str] | None" = None,
-) -> "pd.DataFrame | None":
+    tickers: list[str] | None = None,
+) -> pd.DataFrame | None:
     """Compute per-feature IC against test-period labels for each split.
 
     Single-asset mode: Pearson IC between each feature and forward returns.
@@ -2241,8 +2235,8 @@ def _collect_wf_feature_ic(
 
             if is_panel and tickers:
                 from src.experiments.ml_factory import build_panel_ml_strategy
-                from src.ml.panel import build_panel_feature_matrix
                 from src.ml.labels import ranking_target
+                from src.ml.panel import build_panel_feature_matrix
 
                 strategy_tmp = build_panel_ml_strategy(
                     ml_spec.features, ml_spec.labels, ml_spec.model, ml_spec.signal,
@@ -2316,7 +2310,7 @@ def _collect_wf_feature_ic(
 def _prepare_ml_diagnostics(
     strategy: Any,
     prices: pd.DataFrame,
-    wf: "WalkForwardResult | None",
+    wf: WalkForwardResult | None,
     ml_spec: Any,
     is_panel: bool = False,
 ) -> dict:
@@ -2338,6 +2332,7 @@ def _prepare_ml_diagnostics(
         coeff_stability        pd.DataFrame (feature stats from coefficient_stability())
     """
     import numpy as np
+
     from src.ml.feature_matrix import build_feature_matrix
 
     result: dict = {}
@@ -2345,8 +2340,8 @@ def _prepare_ml_diagnostics(
     # Panel mode: cross-sectional diagnostics using pooled panel predictions
     if is_panel and hasattr(strategy, "_feature_fn_builder") and strategy._tickers:
         try:
+            from src.ml.labels import forward_returns as _fwd_ret
             from src.ml.panel import build_panel_feature_matrix, compute_cross_sectional_ic
-            from src.ml.labels import ranking_target, forward_returns as _fwd_ret
 
             tickers_avail = [t for t in strategy._tickers if t in prices.columns]
             X_panel = build_panel_feature_matrix(
@@ -2377,7 +2372,7 @@ def _prepare_ml_diagnostics(
                     pred_df = None
 
                 horizon = getattr(strategy, "_horizon", 21)
-                actual_df = _fwd_ret(prices[tickers_avail[0]], horizon)  # for single-asset ref
+                _fwd_ret(prices[tickers_avail[0]], horizon)  # for single-asset ref
                 # Full panel actual returns
                 actual_panel = pd.DataFrame({
                     t: _fwd_ret(prices[t], horizon)
@@ -2771,7 +2766,7 @@ def _write_ml_model_diagnostics_json(
         json.dump(payload, f, indent=2)
 
 
-def _write_wf_equity_curves(wf: "WalkForwardResult", out_path: Path) -> None:
+def _write_wf_equity_curves(wf: WalkForwardResult, out_path: Path) -> None:
     """Persist per-split equity curves to diagnostics/wf_equity_curves.json.
 
     Equity curves are monthly-subsampled for compact storage.
@@ -2845,6 +2840,8 @@ def _run_ml_experiment(
     Returns:
         ExperimentRun identical in structure to the D1 pipeline output.
     """
+    import matplotlib
+
     from src.experiments.ml_config import (
         PANEL_SIGNAL_TYPES,
         build_ml_experiment_spec,
@@ -2852,8 +2849,6 @@ def _run_ml_experiment(
         validate_ml_config,
     )
     from src.experiments.ml_factory import build_ml_strategy, build_panel_ml_strategy
-
-    import matplotlib
     matplotlib.use("Agg")
 
     # 1-3. Validate and normalize
@@ -2991,7 +2986,7 @@ def _run_ml_experiment(
 
     # 9b. Compute high-volatility stress mask for regime shading on IC figures.
     # Stress = 21-day realised vol > 2σ of its own rolling 252-day distribution.
-    stress_mask: "pd.Series | None" = None
+    stress_mask: pd.Series | None = None
     try:
         rets = prices.pct_change()
         vol_panel = rets.rolling(21).std() * (252 ** 0.5)
@@ -3100,9 +3095,9 @@ def run_and_report(
     config_path: str | Path,
     report_output_dir: str | Path = Path("reports"),
     include_html: bool = True,
-    report_spec: "Any | None" = None,
+    report_spec: Any | None = None,
     profile: str = "report",
-) -> "tuple[ExperimentRun, Any]":
+) -> tuple[ExperimentRun, Any]:
     """Run an experiment from config then immediately generate a report.
 
     Thin wrapper: delegates entirely to run_experiment_from_config() then

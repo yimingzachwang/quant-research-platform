@@ -1,16 +1,13 @@
 """Tests for orchestration.context using real canonical experiment artefacts."""
 
-import pytest
 
 from src.orchestration.context.context_builder import build_context
+from src.orchestration.context.failure_mode_detector import detect_failure_modes
 from src.orchestration.context.metric_summarizer import summarize_metrics
-from src.orchestration.context.validation_summarizer import summarize_validation
 from src.orchestration.context.ml_diagnostic_summarizer import (
     summarize_ml_diagnostics,
-    summarize_feature_context,
 )
-from src.orchestration.context.failure_mode_detector import detect_failure_modes
-
+from src.orchestration.context.validation_summarizer import summarize_validation
 
 # ---------------------------------------------------------------------------
 # Unit tests for individual summarizers

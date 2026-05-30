@@ -17,6 +17,18 @@ Key invariants:
 
 from src.ml.contracts import PredictionSeries, validate_prediction_index_alignment
 from src.ml.datasets import SupervisedDataset, build_supervised_dataset, dataset_hash
+from src.ml.diagnostics import (
+    average_turnover,
+    coefficient_stability,
+    information_coefficient,
+    prediction_correlation,
+    prediction_drift,
+    prediction_quantiles,
+    rolling_directional_accuracy,
+    signal_turnover,
+    split_metric_table,
+    turnover_by_split,
+)
 from src.ml.feature_matrix import align_features_and_labels, build_feature_matrix
 from src.ml.labels import (
     binary_direction_label,
@@ -30,18 +42,6 @@ from src.ml.signals import (
     sign_signal,
     threshold_signal,
     top_n_weights,
-)
-from src.ml.diagnostics import (
-    average_turnover,
-    coefficient_stability,
-    information_coefficient,
-    prediction_correlation,
-    prediction_drift,
-    prediction_quantiles,
-    rolling_directional_accuracy,
-    signal_turnover,
-    split_metric_table,
-    turnover_by_split,
 )
 
 __all__ = [

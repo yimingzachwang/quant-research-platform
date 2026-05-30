@@ -11,13 +11,11 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from src.orchestration.api.schemas import LLMContext, LLMReviewOutput
 from src.orchestration.llm.llm_interface import call_llm
 from src.orchestration.llm.prompt_templates import EXPERIMENT_REVIEW, load_template
 from src.orchestration.llm.review_schema import (
-    ALL_SECTIONS,
     PROVIDER_ANTHROPIC,
     REVIEW_VERSION,
 )
@@ -139,7 +137,6 @@ def _assert_no_unresolved_tokens(rendered: str, template_name: str) -> None:
 def _extract_sections(text: str) -> dict[str, str]:
     """Parse markdown sections from review text into a keyed dict."""
     sections: dict[str, str] = {}
-    from src.orchestration.llm.review_schema import ALL_SECTIONS
 
     lines = text.split("\n")
     current_key: str | None = None

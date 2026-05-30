@@ -11,10 +11,8 @@ import dataclasses
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.datasets import SupervisedDataset, build_supervised_dataset, dataset_hash
 from src.ml.labels import forward_returns
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers

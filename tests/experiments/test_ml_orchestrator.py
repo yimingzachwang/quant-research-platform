@@ -14,9 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-
 from src.experiments.orchestrator import ExperimentRun, run_experiment_from_config
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -197,7 +195,7 @@ class TestMLRegistry:
     def test_registry_entry_created(self, tmp_path: Path):
         p = _write_v2_cfg(tmp_path)
         with patch(_PATCH, side_effect=_make_load_universe_patch(_PRICES)):
-            run = run_experiment_from_config(p)
+            run_experiment_from_config(p)
         registry_path = tmp_path / "results" / "registry.json"
         assert registry_path.exists()
         entries = json.loads(registry_path.read_text())

@@ -24,7 +24,6 @@ from src.orchestration.session.session_schema import (
     SessionStatus,
 )
 from src.orchestration.utils.filesystem import (
-    list_session_ids,
     session_json_path,
 )
 from src.orchestration.utils.serialization import dump_json, load_json

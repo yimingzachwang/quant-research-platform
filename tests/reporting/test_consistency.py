@@ -5,14 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 from src.reporting.consistency import (
     ConsistencyReport,
     ConsistencyWarning,
     validate_report_consistency,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

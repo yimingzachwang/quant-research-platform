@@ -5,13 +5,13 @@ No assertions on visual content (pixel-level or layout testing is out of scope).
 """
 
 import matplotlib
+
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-import matplotlib.pyplot as plt
-
 from src.strategies.baselines import BuyAndHoldStrategy, EqualWeightStrategy
 from src.strategies.comparison import compare_strategies, metrics_table
 from src.visualization.comparison_plots import (
@@ -20,7 +20,6 @@ from src.visualization.comparison_plots import (
     plot_strategy_drawdowns,
     plot_strategy_equity_curves,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

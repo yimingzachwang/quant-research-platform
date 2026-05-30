@@ -22,9 +22,9 @@ import argparse
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 
-import pandas as pd  # noqa: E402
 
 from src.portfolio.alignment import align_prices, load_universe
 from src.strategies.baselines import BuyAndHoldStrategy, EqualWeightStrategy
@@ -77,7 +77,7 @@ def main(
         ),
     ]
     names = [s.name for s in strategies]
-    print(f"\nStrategies:\n" + "\n".join(f"  {n}" for n in names))
+    print("\nStrategies:\n" + "\n".join(f"  {n}" for n in names))
 
     # 3. Run comparison
     print("\nRunning backtests...")
@@ -103,7 +103,7 @@ def main(
 
     # metrics.csv — tidy, machine-readable
     table.to_csv(OUTPUT_DIR / "metrics.csv")
-    print(f"\nSaved: metrics.csv")
+    print("\nSaved: metrics.csv")
 
     # equity_curves.png
     fig = plot_strategy_equity_curves(

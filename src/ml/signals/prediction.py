@@ -26,7 +26,6 @@ from src.ml.contracts import PredictionSeries
 from src.portfolio.allocation import equal_weight
 from src.portfolio.ranking import rank_assets, select_bottom_n, select_top_n
 
-
 # ---------------------------------------------------------------------------
 # Single-asset signal functions  (predictions.values must be pd.Series)
 # ---------------------------------------------------------------------------

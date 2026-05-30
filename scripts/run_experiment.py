@@ -10,6 +10,7 @@ Demonstrates the Phase D0 experiment lifecycle:
 Output directory: results/experiments/<experiment_name>/
 Registry:         results/experiments/registry.json
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -22,8 +23,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import matplotlib
+
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt
 from src.experiments.config import ExperimentSpec, experiment_hash
 from src.experiments.registry import ExperimentRegistry
 from src.experiments.results import ExperimentResult
@@ -33,9 +36,6 @@ from src.strategies.momentum_rotation import MomentumRotationStrategy
 from src.strategies.runner import run_strategy
 from src.visualization.backtest_plots import plot_equity_and_drawdown
 from src.visualization.styles import apply_research_style
-
-import matplotlib.pyplot as plt
-
 
 # ---------------------------------------------------------------------------
 # Configuration

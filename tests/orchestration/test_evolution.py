@@ -15,10 +15,7 @@ Validates:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
-from pathlib import Path
-
-import pytest
+from datetime import datetime
 
 from src.orchestration.api.schemas import (
     EvolutionStep,
@@ -26,7 +23,6 @@ from src.orchestration.api.schemas import (
     ResearchEvolutionChain,
 )
 from src.orchestration.evolution.evolution_builder import (
-    _chain_to_dict,
     _generate_evolution_summary,
     _lineage_to_dict,
     _step_from_contexts,
@@ -48,7 +44,7 @@ _CHILD = "canonical_ml_multi_asset"
 
 
 def test_register_lineage_writes_file(tmp_path):
-    lin = register_lineage(
+    register_lineage(
         "canonical_ml_showcase",
         parent_experiment=None,
         iteration_reason="Baseline",
@@ -134,7 +130,6 @@ def test_resolve_chain_single_node(tmp_path):
     register_lineage("canonical_ml_showcase", parent_experiment=None,
                      experiments_base=tmp_path)
     # Use real experiments dir so list_experiments finds them
-    from src.orchestration.utils.filesystem import experiments_root
     chain = resolve_chain("canonical_ml_showcase", tmp_path)
     assert chain == ["canonical_ml_showcase"]
 

@@ -12,18 +12,19 @@ src.strategies.  It does NOT import from src.experiments.orchestrator.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from src.experiments.ml_config import (
+    PANEL_LABEL_TYPES,
+    PANEL_SIGNAL_TYPES,
     FeatureSpec,
     LabelSpec,
     ModelSpec,
     PortfolioConstructionSpec,
     SignalSpec,
-    PANEL_LABEL_TYPES,
-    PANEL_SIGNAL_TYPES,
 )
 
 if TYPE_CHECKING:
@@ -57,6 +58,7 @@ def build_feature_fns(
     Raises:
         ValueError: If a feature type is unknown (should not happen after validation).
     """
+    from src.features.market import rolling_beta
     from src.features.momentum import momentum, risk_adjusted_momentum
     from src.features.returns import compute_returns
     from src.features.rolling import (
@@ -74,7 +76,6 @@ def build_feature_fns(
         vol_of_vol,
         vol_percentile,
     )
-    from src.features.market import rolling_beta
 
     fns: dict[str, Callable[[pd.DataFrame], pd.Series]] = {}
     ticker = feature_spec.ticker
@@ -302,7 +303,7 @@ def build_feature_fn_builder(
     entries = feature_spec.entries
 
     def build_for_ticker(ticker: str) -> dict[str, Callable[[pd.DataFrame], pd.Series]]:
-        from src.experiments.ml_config import FeatureEntry, FeatureSpec as FS
+        from src.experiments.ml_config import FeatureSpec as FS
         ticker_spec = FS(ticker=ticker, entries=entries)
         return build_feature_fns(ticker_spec)
 
@@ -314,7 +315,7 @@ def build_feature_fn_builder(
 # ---------------------------------------------------------------------------
 
 
-def build_model(model_spec: ModelSpec) -> "BaseMLModel":
+def build_model(model_spec: ModelSpec) -> BaseMLModel:
     """Instantiate an ML model from a ModelSpec.
 
     Args:
@@ -367,7 +368,7 @@ def build_model(model_spec: ModelSpec) -> "BaseMLModel":
 def build_signal_fn(
     signal_spec: SignalSpec,
     asset_name: str | None = None,
-) -> "Callable[[PredictionSeries], pd.DataFrame]":
+) -> Callable[[PredictionSeries], pd.DataFrame]:
     """Build the signal-to-weights callable from a SignalSpec.
 
     Single-asset signals (sign, threshold) wrap the returned pd.Series in a
@@ -401,7 +402,7 @@ def build_signal_fn(
         )
 
     if stype == "sign":
-        def _sign_fn(preds: "PredictionSeries", name: str | None = asset_name) -> pd.DataFrame:
+        def _sign_fn(preds: PredictionSeries, name: str | None = asset_name) -> pd.DataFrame:
             s = sign_signal(preds)
             if name is not None:
                 s = s.rename(name)
@@ -412,7 +413,7 @@ def build_signal_fn(
         threshold = float(signal_spec.params.get("threshold", 0.0))
 
         def _threshold_fn(
-            preds: "PredictionSeries",
+            preds: PredictionSeries,
             t: float = threshold,
             name: str | None = asset_name,
         ) -> pd.DataFrame:
@@ -433,7 +434,7 @@ def build_signal_fn(
 
 def build_panel_signal_fn(
     signal_spec: SignalSpec,
-) -> "Callable[[PredictionSeries], pd.DataFrame]":
+) -> Callable[[PredictionSeries], pd.DataFrame]:
     """Build the panel signal-to-weights callable from a SignalSpec.
 
     Handles top_n, long_short, and normalize signal types.  Each function
@@ -502,11 +503,11 @@ def _build_panel_signal_fn_with_policy(
         temperature = weighting.temperature
 
         def _top_n_with_policy(
-            preds: "PredictionSeries",
+            preds: PredictionSeries,
             _n: int = n,
             _scheme: str = scheme,
             _norm: str = pred_norm,
-            _temp: "float | None" = temperature,
+            _temp: float | None = temperature,
         ) -> pd.DataFrame:
             ranks = rank_assets(preds.values, ascending=False)
             mask = select_top_n(ranks, n=_n)
@@ -525,7 +526,7 @@ def build_panel_ml_strategy(
     signal_spec: SignalSpec,
     tickers: list[str],
     portfolio_construction: PortfolioConstructionSpec | None = None,
-) -> "PanelMLStrategy":
+) -> PanelMLStrategy:
     """Assemble a PanelMLStrategy from the four spec objects + universe tickers.
 
     Pure function: builds callables from specs, then constructs PanelMLStrategy.
@@ -574,7 +575,7 @@ def build_ml_strategy(
     label_spec: LabelSpec,
     model_spec: ModelSpec,
     signal_spec: SignalSpec,
-) -> "MLStrategy":
+) -> MLStrategy:
     """Assemble an MLStrategy from the four spec objects.
 
     Pure function: builds callables from specs, then constructs MLStrategy.

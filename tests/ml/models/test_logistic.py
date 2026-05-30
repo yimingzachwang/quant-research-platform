@@ -9,12 +9,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.contracts import PredictionSeries
 from src.ml.datasets import SupervisedDataset
-from src.ml.labels import binary_direction_label, forward_returns
+from src.ml.labels import binary_direction_label
 from src.ml.models.logistic import LogisticRegressionModel
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -13,18 +13,15 @@ import math
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-import numpy as np
 import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
     FIG_HEIGHT_TALL,
-    FIG_WIDTH_FULL,
     format_pct_axis,
     label_axes,
     make_figure,
 )
-from src.visualization.utils import pct_formatter
 from src.visualization.typography import get_typography
 
 

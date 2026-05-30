@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.orchestration.intents.intent_schema import Intent
+    pass
 
 # Each entry: (raw_text, expected_intent_type_name, notes)
 CANONICAL_EXAMPLES: list[tuple[str, str, str]] = [

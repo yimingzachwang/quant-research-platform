@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
 from src.features.families import generate_feature_label
-
 
 # ---------------------------------------------------------------------------
 # Hardcoded overrides

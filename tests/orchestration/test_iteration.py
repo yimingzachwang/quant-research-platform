@@ -16,8 +16,6 @@ from __future__ import annotations
 import json
 import re
 
-import pytest
-
 from src.orchestration.api.schemas import IterationProposal
 from src.orchestration.context.context_builder import build_context
 from src.orchestration.llm.iteration_engine import (
@@ -29,7 +27,6 @@ from src.orchestration.llm.iteration_engine import (
     run_iteration_proposal,
 )
 from src.orchestration.llm.prompt_templates import ITERATION_PROPOSAL, load_template
-from src.orchestration.llm.review_engine import _assert_no_unresolved_tokens
 from src.orchestration.llm.review_schema import PROVIDER_STUB
 
 _CANONICAL = "canonical_ml_multi_asset"

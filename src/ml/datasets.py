@@ -51,7 +51,7 @@ class SupervisedDataset:
         self,
         start: str | pd.Timestamp,
         end: str | pd.Timestamp,
-    ) -> "SupervisedDataset":
+    ) -> SupervisedDataset:
         """Return a new dataset restricted to the closed interval [start, end].
 
         Intended for use inside walk-forward loops.  Pass TimeSplit boundaries

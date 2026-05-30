@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from src.orchestration.utils.filesystem import (
     equity_curve_path,
     metadata_path,
@@ -38,21 +40,21 @@ def load_experiment_metrics(
 def load_equity_curve(
     experiment_name: str,
     base: Path | str | None = None,
-) -> "pd.Series | None":
+) -> pd.Series | None:
     return load_series_parquet(equity_curve_path(experiment_name, base))
 
 
 def load_returns(
     experiment_name: str,
     base: Path | str | None = None,
-) -> "pd.Series | None":
+) -> pd.Series | None:
     return load_series_parquet(returns_path(experiment_name, base))
 
 
 def load_weights(
     experiment_name: str,
     base: Path | str | None = None,
-) -> "pd.DataFrame | None":
+) -> pd.DataFrame | None:
     return load_parquet(weights_path(experiment_name, base))
 
 

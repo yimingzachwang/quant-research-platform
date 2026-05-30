@@ -6,18 +6,15 @@ scale_dynamic_fontsize() across both render profiles.
 
 from __future__ import annotations
 
-import pytest
 import matplotlib.pyplot as plt
-
+import pytest
 from src.visualization.render_profiles import set_active_profile
 from src.visualization.styles import apply_research_style
 from src.visualization.typography import (
-    TypographyScale,
     get_typography,
     heatmap_cell_fontsize,
     scale_dynamic_fontsize,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

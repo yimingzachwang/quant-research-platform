@@ -11,13 +11,11 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-import numpy as np
 import pandas as pd
 
 from src.visualization.styles import (
     COLORS,
     FIG_HEIGHT_STANDARD,
-    FIG_WIDTH_FULL,
     format_pct_axis,
     label_axes,
     make_figure,
@@ -60,7 +58,7 @@ def plot_strategy_equity_curves(
     fig, ax = make_figure(height=FIG_HEIGHT_STANDARD)
     colors = _colors(len(results))
 
-    for (name, result), color in zip(results.items(), colors):
+    for (name, result), color in zip(results.items(), colors, strict=False):
         ec = result.backtest["equity_curve"]
         ax.plot(ec.index, ec, label=name, color=color, linewidth=1.4)
 
@@ -94,7 +92,7 @@ def plot_strategy_drawdowns(
     fig, ax = make_figure(height=FIG_HEIGHT_STANDARD)
     colors = _colors(len(results))
 
-    for (name, result), color in zip(results.items(), colors):
+    for (name, result), color in zip(results.items(), colors, strict=False):
         dd = result.backtest["drawdown"]
         ax.plot(dd.index, dd, label=name, color=color, linewidth=1.2, alpha=0.9)
         ax.fill_between(dd.index, dd, 0, alpha=0.07, color=color)
@@ -143,7 +141,7 @@ def plot_metric_comparison(
 
     # Annotate bar ends
     _t = get_typography()
-    for bar, val in zip(bars, series.values):
+    for bar, val in zip(bars, series.values, strict=False):
         offset = 0.01 * (series.abs().max() or 1.0)
         ha = "left" if val >= 0 else "right"
         ax.text(

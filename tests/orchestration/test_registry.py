@@ -1,10 +1,12 @@
 """Tests for orchestration.registry using real canonical experiments."""
 
-import json
-from pathlib import Path
 
-import pytest
 
+from src.orchestration.registry.artefact_registry import (
+    ALL_ARTEFACTS,
+    get_spec,
+    list_keys,
+)
 from src.orchestration.registry.experiment_registry import (
     find_by_strategy,
     find_by_tag,
@@ -13,12 +15,6 @@ from src.orchestration.registry.experiment_registry import (
     list_summaries,
     rank_by_sharpe,
 )
-from src.orchestration.registry.artefact_registry import (
-    ALL_ARTEFACTS,
-    get_spec,
-    list_keys,
-)
-
 
 # ---------------------------------------------------------------------------
 # Artefact registry (static, no I/O)

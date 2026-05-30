@@ -24,7 +24,8 @@ cross-section — not that momentum predicts SPY specifically.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 
@@ -173,7 +174,7 @@ class PanelMLStrategy(Strategy):
 
     @property
     def name(self) -> str:
-        n = getattr(self._signal_fn, "__name__", "panel")
+        getattr(self._signal_fn, "__name__", "panel")
         return f"PanelMLStrategy({self._model.name})"
 
     def params(self) -> dict[str, Any]:

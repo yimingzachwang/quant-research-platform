@@ -2,7 +2,6 @@
 
 import pandas as pd
 import pytest
-
 from src.cleaning.timestamps import remove_duplicate_timestamps, sort_time_index
 
 

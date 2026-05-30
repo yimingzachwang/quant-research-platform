@@ -10,11 +10,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
-
+from src.features.rolling import bollinger_distance, rolling_autocorrelation, rolling_skewness
 from src.features.volatility import downside_volatility, vol_of_vol, vol_percentile
-from src.features.rolling import bollinger_distance, rolling_skewness, rolling_autocorrelation
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.portfolio.ranking import rank_assets, select_bottom_n, select_top_n
 
 

@@ -9,11 +9,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.contracts import PredictionSeries, validate_prediction_index_alignment
 from src.ml.datasets import SupervisedDataset, build_supervised_dataset
 from src.ml.labels import forward_returns
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers

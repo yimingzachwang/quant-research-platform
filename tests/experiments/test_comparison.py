@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.experiments.comparison import (
     compare_experiments,
     load_and_compare,
@@ -15,7 +14,6 @@ from src.experiments.comparison import (
     rank_experiments,
 )
 from src.experiments.results import ExperimentResult, save_experiment
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -1,9 +1,7 @@
 """Tests for src/features/momentum.py."""
 
-import numpy as np
 import pandas as pd
 import pytest
-
 from src.features.momentum import momentum, momentum_20d, momentum_60d, momentum_252d
 
 

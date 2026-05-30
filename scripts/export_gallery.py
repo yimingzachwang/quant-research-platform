@@ -9,6 +9,7 @@ Usage:
     python scripts/export_gallery.py --output exports/experiment_gallery/examples
     python scripts/export_gallery.py --no-html
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 

@@ -5,9 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.strategies.panel_ml_strategy import PanelMLStrategy
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -184,10 +182,8 @@ class TestPanelMLStrategyGenerateWeights:
 
 class TestPanelMLStrategyWalkForward:
     def test_walk_forward_validation_runs(self):
-        from unittest.mock import patch
+        from src.experiments.factory import ValidationConfig, build_validation_splits
         from src.validation.walk_forward import run_walk_forward_validation
-        from src.experiments.factory import build_validation_splits
-        from src.experiments.factory import ValidationConfig
 
         tickers = ["SPY", "QQQ", "IWM"]
         prices = _make_prices(n_dates=500, tickers=tickers)
@@ -201,9 +197,8 @@ class TestPanelMLStrategyWalkForward:
         assert wf.n_splits > 0
 
     def test_each_split_produces_weights(self):
+        from src.experiments.factory import ValidationConfig, build_validation_splits
         from src.validation.walk_forward import run_walk_forward_validation
-        from src.experiments.factory import build_validation_splits
-        from src.experiments.factory import ValidationConfig
 
         tickers = ["SPY", "QQQ", "IWM", "EEM"]
         prices = _make_prices(n_dates=500, tickers=tickers)

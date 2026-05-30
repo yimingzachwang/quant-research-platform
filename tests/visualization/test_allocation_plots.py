@@ -7,19 +7,17 @@ invariants, and graceful fallback paths for degenerate inputs.
 
 from __future__ import annotations
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import pytest
-import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 from src.visualization.allocation_plots import (
     plot_concentration_evolution,
-    plot_prediction_dispersion,
     plot_confidence_calibration,
+    plot_prediction_dispersion,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

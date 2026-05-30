@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.experiments.ml_config import (
     FeatureEntry,
     FeatureSpec,
@@ -20,7 +19,8 @@ from src.experiments.ml_factory import (
     build_model,
     build_signal_fn,
 )
-
+from src.ml.contracts import PredictionSeries
+from src.strategies.ml_strategy import MLStrategy
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -295,8 +295,7 @@ class TestBuildModel:
 
 
 class TestBuildSignalFn:
-    def _make_preds(self) -> "PredictionSeries":
-        from src.ml.contracts import PredictionSeries
+    def _make_preds(self) -> PredictionSeries:
         return PredictionSeries(
             values=pd.Series([0.1, -0.2, 0.3, 0.0], dtype="float64"),
             label_name="forward_returns",
@@ -338,8 +337,7 @@ class TestBuildSignalFn:
 
 
 class TestBuildMLStrategy:
-    def _build(self, model_type: str = "RidgeRegression") -> "MLStrategy":
-        from src.strategies.ml_strategy import MLStrategy
+    def _build(self, model_type: str = "RidgeRegression") -> MLStrategy:
         fs = FeatureSpec(
             ticker="SPY",
             entries=[FeatureEntry("mom", "momentum", {"lookback": 20})],
@@ -350,7 +348,6 @@ class TestBuildMLStrategy:
         return build_ml_strategy(fs, ls, ms, ss)
 
     def test_returns_ml_strategy(self):
-        from src.strategies.ml_strategy import MLStrategy
         strategy = self._build()
         assert isinstance(strategy, MLStrategy)
 

@@ -11,12 +11,10 @@ pandas DataFrames — easy to inspect, export, or pass to visualization helpers.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
 from src.experiments.results import ExperimentResult, load_experiment
-
 
 # ---------------------------------------------------------------------------
 # Public API

@@ -7,10 +7,9 @@ No pixel-level assertions — structural smoke tests only.
 
 from __future__ import annotations
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
-import pytest
 
 matplotlib.use("Agg")
 
@@ -20,7 +19,6 @@ from src.visualization.universe_plots import (
     plot_universe_correlation_heatmap,
     plot_universe_coverage_heatmap,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

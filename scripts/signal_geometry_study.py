@@ -37,6 +37,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -194,7 +195,7 @@ def extract_dispersion_series(allocation_diagnostics: dict | None) -> pd.Series 
 def build_dispersion_by_alpha(study_data: dict) -> dict[str, dict]:
     """Aggregate prediction dispersion metrics from allocation_diagnostics."""
     result: dict[str, dict] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         label = d["label"]
         ad = d["allocation_diagnostics"] or {}
         disp = ad.get("prediction_dispersion") or {}
@@ -213,7 +214,7 @@ def build_dispersion_by_alpha(study_data: dict) -> dict[str, dict]:
 def build_calibration_by_alpha(study_data: dict) -> dict[str, dict]:
     """Aggregate confidence calibration metrics from allocation_diagnostics."""
     result: dict[str, dict] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         label = d["label"]
         ad = d["allocation_diagnostics"] or {}
         cc = ad.get("confidence_calibration") or {}
@@ -238,7 +239,7 @@ def build_split_sharpe_by_alpha(study_data: dict) -> tuple[dict[str, list[float]
     split_labels: list[str] = []
     max_splits = 0
 
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         sm = d["split_metrics"] or {}
         splits = sm.get("splits") or []
         if len(splits) > max_splits:
@@ -255,7 +256,7 @@ def build_summary_by_alpha(study_data: dict,
                             dispersion_by_alpha: dict[str, dict]) -> dict[str, dict]:
     """Build per-alpha summary dict for robustness scatter plot."""
     result: dict[str, dict] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         label = d["label"]
         m = d["metrics"]
         sm = d["split_metrics"] or {}
@@ -304,15 +305,15 @@ def generate_comparative_figures(
     output_dir: Path,
 ) -> dict[str, Path]:
     """Generate all comparative figures; return name → saved path dict."""
-    from src.visualization.styles import apply_research_style
     from src.visualization.signal_geometry_plots import (
-        plot_dispersion_sweep,
         plot_calibration_sweep,
-        plot_wf_stability_heatmap,
+        plot_dispersion_sweep,
+        plot_intrabasket_geometry,
         plot_robustness_tradeoff,
         plot_turnover_by_alpha,
-        plot_intrabasket_geometry,
+        plot_wf_stability_heatmap,
     )
+    from src.visualization.styles import apply_research_style
 
     apply_research_style(profile="report")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -344,7 +345,7 @@ def generate_comparative_figures(
 
     # 5. Turnover by alpha
     turnover_dict: dict[str, pd.Series] = {}
-    for exp_name, d in study_data.items():
+    for _exp_name, d in study_data.items():
         if d["weights"] is not None:
             to = compute_turnover_series(d["weights"])
             turnover_dict[d["label"]] = to[to > 0]
@@ -363,7 +364,7 @@ def generate_comparative_figures(
         fig, ax = plt.subplots(figsize=(10, 5))
         labels = list(equity_dict.keys())
         colors = _alpha_colors(labels)
-        for (lbl, curve), color in zip(equity_dict.items(), colors):
+        for (lbl, curve), color in zip(equity_dict.items(), colors, strict=False):
             lw = 1.8 if "0.50" in lbl else 1.2
             ax.plot(curve.index, curve.values, color=color, linewidth=lw, label=lbl, alpha=0.9)
         ax.axhline(1.0, color="#aaa", linewidth=0.7, linestyle="--")

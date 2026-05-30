@@ -13,7 +13,6 @@ Read-only: no data mutation, no backtest execution.
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 
@@ -174,7 +173,7 @@ def plot_weight_lines(
     symbols = list(weights.columns)
     colors = _get_asset_colors(symbols)
 
-    for sym, color in zip(symbols, colors):
+    for sym, color in zip(symbols, colors, strict=False):
         ax.plot(
             weights.index,
             weights[sym].fillna(0.0),
@@ -265,7 +264,7 @@ def plot_rolling_weights(
     fig, ax = make_figure(height=3.5)
 
     bottom = np.zeros(len(sampled))
-    for sym, color in zip(symbols, colors):
+    for sym, color in zip(symbols, colors, strict=False):
         vals = sampled[sym].values
         ax.bar(
             sampled.index,
@@ -459,7 +458,7 @@ def plot_asset_contribution(
     colors = _get_asset_colors(symbols)
 
     fig, ax = make_figure(height=3.8)
-    for sym, color in zip(symbols, colors):
+    for sym, color in zip(symbols, colors, strict=False):
         ax.plot(cum_contrib.index, cum_contrib[sym], label=sym, color=color, linewidth=1.3)
 
     ax.axhline(0, color=COLORS["grid"], linewidth=0.7)

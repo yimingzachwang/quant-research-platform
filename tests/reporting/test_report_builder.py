@@ -6,14 +6,12 @@ import json
 from pathlib import Path
 
 import pytest
-
 from src.reporting.report_builder import (
     ExperimentArtefacts,
     ReportPaths,
     generate_experiment_report,
     load_experiment_artefacts,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers — minimal artefact directory builders

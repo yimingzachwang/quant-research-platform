@@ -3,16 +3,13 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.strategies.baselines import EqualWeightStrategy
-from src.strategies.momentum_rotation import MomentumRotationStrategy
-from src.validation.splits import rolling_time_splits, expanding_time_splits
+from src.validation.splits import expanding_time_splits, rolling_time_splits
 from src.validation.walk_forward import (
     SplitResult,
     WalkForwardResult,
     run_walk_forward_validation,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -163,7 +160,7 @@ def test_cost_reduces_net_return(
     no_cost = run_walk_forward_validation(prices, strategy, rolling_splits, transaction_cost_bps=0.0)
     with_cost = run_walk_forward_validation(prices, strategy, rolling_splits, transaction_cost_bps=20.0)
 
-    for nc_sr, wc_sr in zip(no_cost.splits, with_cost.splits):
+    for nc_sr, wc_sr in zip(no_cost.splits, with_cost.splits, strict=False):
         nc_ret = nc_sr.metrics["annualized_return"]
         wc_ret = wc_sr.metrics["annualized_return"]
         assert wc_ret <= nc_ret + 1e-10

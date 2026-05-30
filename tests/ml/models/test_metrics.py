@@ -10,7 +10,6 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.ml.models.metrics import (
     correlation_coefficient,
     directional_accuracy,
@@ -19,7 +18,6 @@ from src.ml.models.metrics import (
     r2_score,
     rmse,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

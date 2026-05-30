@@ -12,10 +12,11 @@ warning list, not exceptions (report generation continues regardless).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
     from src.reporting.report_builder import ExperimentArtefacts
 
 
@@ -56,9 +57,9 @@ class ConsistencyReport:
 
 
 def validate_report_consistency(
-    artefacts: "ExperimentArtefacts",
-    fig_map: "dict[str, Path] | None",
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    fig_map: dict[str, Path] | None,
+    claimed: set[str] | None = None,
 ) -> ConsistencyReport:
     """Run all consistency checks and return a ConsistencyReport.
 
@@ -88,7 +89,7 @@ def validate_report_consistency(
 # ---------------------------------------------------------------------------
 
 def _check_feature_registry_completeness(
-    artefacts: "ExperimentArtefacts",
+    artefacts: ExperimentArtefacts,
     available_figs: set[str],
     embedded: set[str],
     report: ConsistencyReport,
@@ -135,7 +136,7 @@ def _check_feature_registry_completeness(
 
 
 def _check_family_ic_coverage(
-    artefacts: "ExperimentArtefacts",
+    artefacts: ExperimentArtefacts,
     available_figs: set[str],
     report: ConsistencyReport,
 ) -> None:
@@ -174,7 +175,7 @@ def _check_family_ic_coverage(
 
 
 def _check_figure_coverage(
-    artefacts: "ExperimentArtefacts",
+    artefacts: ExperimentArtefacts,
     available_figs: set[str],
     embedded: set[str],
     report: ConsistencyReport,
@@ -202,7 +203,7 @@ def _check_figure_coverage(
 
 
 def _check_feature_ordering_consistency(
-    artefacts: "ExperimentArtefacts",
+    artefacts: ExperimentArtefacts,
     report: ConsistencyReport,
 ) -> None:
     """Verify that correlation matrix and registry have the same feature set."""

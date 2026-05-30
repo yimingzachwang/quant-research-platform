@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from src.api.schemas import RouteRequest, _asdict
+from src.api.schemas import RouteRequest
 from src.orchestration.api import research_api as _api
 from src.orchestration.intents.intent_parser import parse
 from src.orchestration.router.workflow_router import route

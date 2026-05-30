@@ -2,26 +2,23 @@
 
 from __future__ import annotations
 
-import math
-
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.visualization.signal_geometry_plots import (
-    plot_dispersion_sweep,
-    plot_dispersion_evolution,
     plot_calibration_sweep,
-    plot_wf_stability_heatmap,
+    plot_concentration_emergence,
+    plot_dispersion_evolution,
+    plot_dispersion_sweep,
+    plot_intrabasket_geometry,
     plot_robustness_tradeoff,
     plot_turnover_by_alpha,
-    plot_intrabasket_geometry,
-    plot_concentration_emergence,
+    plot_wf_stability_heatmap,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

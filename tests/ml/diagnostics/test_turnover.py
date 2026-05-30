@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
-
 from src.ml.diagnostics.turnover import (
     average_turnover,
     signal_turnover,
     turnover_by_split,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

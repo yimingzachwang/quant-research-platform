@@ -7,7 +7,6 @@ underlying registry implementation.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from src.orchestration.api.schemas import ExperimentSummary
 from src.orchestration.utils.filesystem import (

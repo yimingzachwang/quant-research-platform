@@ -31,7 +31,7 @@ makes no filesystem path assumptions.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.reporting.report_builder import ExperimentArtefacts
@@ -63,7 +63,7 @@ def _feat_label(name: str) -> str:
 _PANEL_SIGNAL_TYPES_SET = {"top_n", "long_short", "normalize"}
 
 
-def _is_panel_mode(artefacts: "ExperimentArtefacts") -> bool:
+def _is_panel_mode(artefacts: ExperimentArtefacts) -> bool:
     """Return True when the experiment uses a cross-sectional panel topology."""
     prov = artefacts.ml_provenance
     if not isinstance(prov, dict):
@@ -78,11 +78,11 @@ def _is_panel_mode(artefacts: "ExperimentArtefacts") -> bool:
 
 
 def render_report(
-    artefacts: "ExperimentArtefacts",
+    artefacts: ExperimentArtefacts,
     figure_paths: list[tuple[str, Path]],
     generated_at: str,
     report_version: str,
-    report_spec: "ResearchReportSpec | None" = None,
+    report_spec: ResearchReportSpec | None = None,
 ) -> str:
     """Render a full markdown report for one experiment.
 
@@ -218,12 +218,12 @@ def render_report(
 # ---------------------------------------------------------------------------
 
 
-def _title(artefacts: "ExperimentArtefacts") -> str:
+def _title(artefacts: ExperimentArtefacts) -> str:
     name = artefacts.metadata.get("experiment_name", "Unnamed Experiment")
     return f"# Experiment Report: {name}"
 
 
-def _summary(artefacts: "ExperimentArtefacts") -> str:
+def _summary(artefacts: ExperimentArtefacts) -> str:
     lines: list[str] = []
 
     cfg = artefacts.config
@@ -251,7 +251,7 @@ def _summary(artefacts: "ExperimentArtefacts") -> str:
 # ---------------------------------------------------------------------------
 
 
-def _research_thesis(artefacts: "ExperimentArtefacts") -> str:
+def _research_thesis(artefacts: ExperimentArtefacts) -> str:
     if isinstance(artefacts.ml_provenance, dict):
         body = _ml_thesis_body(artefacts)
         return _render_section("Research Thesis & Methodology", body)
@@ -368,7 +368,7 @@ def _generic_thesis_body(strategy_type: str) -> str:
     )
 
 
-def _ml_thesis_body(artefacts: "ExperimentArtefacts") -> str:
+def _ml_thesis_body(artefacts: ExperimentArtefacts) -> str:
     """Research thesis for v2 ML experiments.
 
     Reads ml_provenance, feature_registry, and feature_summary to generate
@@ -562,7 +562,7 @@ def _ml_thesis_body(artefacts: "ExperimentArtefacts") -> str:
     }
 
     n_features = len(entries)
-    feat_types = list({e.get("type", "") for e in entries if e.get("type")})
+    list({e.get("type", "") for e in entries if e.get("type")})
     horizon_str = f"{horizon}-day forward" if horizon is not None else "forward"
 
     lines: list[str] = []
@@ -675,9 +675,9 @@ def _ml_thesis_body(artefacts: "ExperimentArtefacts") -> str:
 
 
 def _universe_construction(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Universe Construction & Coverage section.
 
@@ -887,9 +887,9 @@ def _universe_correlation_commentary(
 
 
 def _data_infrastructure(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     ra = artefacts.research_artefacts if isinstance(artefacts.research_artefacts, dict) else {}
     ds = ra.get("data_summary") if ra else None
@@ -990,7 +990,7 @@ def _data_infrastructure(
 # ---------------------------------------------------------------------------
 
 
-def _backtesting_methodology(artefacts: "ExperimentArtefacts") -> str:
+def _backtesting_methodology(artefacts: ExperimentArtefacts) -> str:
     cfg = artefacts.config or {}
     cost_bps = float((cfg.get("execution") or {}).get("transaction_cost_bps", 5.0))
     params = (cfg.get("strategy") or {}).get("parameters") or {}
@@ -1052,9 +1052,9 @@ def _backtesting_methodology(artefacts: "ExperimentArtefacts") -> str:
 
 
 def _portfolio_process(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     ra = artefacts.research_artefacts if isinstance(artefacts.research_artefacts, dict) else {}
     st = ra.get("signal_transitions") if ra else None
@@ -1192,7 +1192,7 @@ def _portfolio_process(
 # ---------------------------------------------------------------------------
 
 
-def _ml_portfolio_process_body(artefacts: "ExperimentArtefacts") -> list[str]:
+def _ml_portfolio_process_body(artefacts: ExperimentArtefacts) -> list[str]:
     """Build the ML pipeline narrative for _portfolio_process()."""
     prov = artefacts.ml_provenance or {}
     model = prov.get("model") or {}
@@ -1248,7 +1248,7 @@ def _ml_portfolio_process_body(artefacts: "ExperimentArtefacts") -> list[str]:
         pipeline_header,
         "",
         "```",
-        f"prices[t-window : t]",
+        "prices[t-window : t]",
         f"  → feature_matrix({feat_list_str})",
         f"       (X: {n_features} column{'s' if n_features != 1 else ''}, no NaN rows, pre-alignment)",
         f"  → {model_type}.predict(X_clean)",
@@ -1325,9 +1325,9 @@ def _ml_portfolio_process_body(artefacts: "ExperimentArtefacts") -> list[str]:
 
 
 def _allocation_research_section(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Allocation research narrative: concentration dynamics, prediction dispersion,
     and confidence calibration for panel ML experiments.
@@ -1512,7 +1512,7 @@ def _allocation_research_section(
 # ---------------------------------------------------------------------------
 
 
-def _ml_failure_modes(artefacts: "ExperimentArtefacts") -> list[str]:
+def _ml_failure_modes(artefacts: ExperimentArtefacts) -> list[str]:
     """Build ML-specific failure mode commentary from observed diagnostics.
 
     Reads split_metrics and ml_model_diagnostics to generate an evidence-grounded
@@ -1633,15 +1633,15 @@ def _ml_failure_modes(artefacts: "ExperimentArtefacts") -> list[str]:
 
 
 def _failure_analysis(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     bkd = artefacts.backtest_diagnostics if isinstance(artefacts.backtest_diagnostics, dict) else {}
     sm = artefacts.split_metrics if isinstance(artefacts.split_metrics, dict) else {}
     cfg = artefacts.config or {}
     strategy_type = (cfg.get("strategy") or {}).get("type", "")
-    metrics = artefacts.metrics if isinstance(artefacts.metrics, dict) else {}
+    artefacts.metrics if isinstance(artefacts.metrics, dict) else {}
 
     lines: list[str] = []
 
@@ -1787,9 +1787,9 @@ def _failure_analysis(
 
 
 def _feature_family_analysis(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Return a Feature Family Analysis subsection string, or empty string if absent.
 
@@ -1805,10 +1805,9 @@ def _feature_family_analysis(
         return ""
 
     try:
-        from src.features.families import FEATURE_FAMILY_DESCRIPTIONS, FEATURE_FAMILIES
+        from src.features.families import FEATURE_FAMILY_DESCRIPTIONS
     except Exception:
         FEATURE_FAMILY_DESCRIPTIONS = {}
-        FEATURE_FAMILIES = {}
 
     lines: list[str] = []
     lines.append("**Feature family grouping:**")
@@ -1862,9 +1861,9 @@ def _feature_family_analysis(
 
 
 def _feature_engineering(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Feature Engineering section — rendered when feature artefacts are present.
 
@@ -1978,7 +1977,7 @@ def _feature_engineering(
         lines.append("")
 
         n_raw = al.get("n_rows_raw")
-        n_clean = al.get("n_rows_features_clean")
+        al.get("n_rows_features_clean")
         n_aligned = al.get("n_rows_after_alignment")
         warmup = al.get("warmup_rows_removed")
         label_drop = al.get("label_rows_removed")
@@ -2113,9 +2112,9 @@ def _feature_engineering(
 
 
 def _ml_model_behavior(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """ML Model Behaviour section — rendered when ml_model_diagnostics are present.
 
@@ -2350,7 +2349,7 @@ def _ml_model_behavior(
     return _render_section("ML Model Behaviour", "\n".join(lines))
 
 
-def _ml_section(artefacts: "ExperimentArtefacts") -> str:
+def _ml_section(artefacts: ExperimentArtefacts) -> str:
     """Model & Features section — rendered only for v2 (ML) experiments."""
     if not isinstance(artefacts.ml_provenance, dict):
         return ""
@@ -2405,7 +2404,7 @@ def _ml_section(artefacts: "ExperimentArtefacts") -> str:
     return _render_section("Model & Features", "\n".join(lines))
 
 
-def _provenance_section(artefacts: "ExperimentArtefacts") -> str:
+def _provenance_section(artefacts: ExperimentArtefacts) -> str:
     """Provenance section — shown only when at least one hash is available."""
     config_hash: str | None = artefacts.metadata.get("config_hash") if isinstance(artefacts.metadata, dict) else None
     ml_hash: str | None = None
@@ -2424,7 +2423,7 @@ def _provenance_section(artefacts: "ExperimentArtefacts") -> str:
     return _render_section("Provenance", _pipe_table(["Key", "Value"], rows))
 
 
-def _metadata(artefacts: "ExperimentArtefacts") -> str:
+def _metadata(artefacts: ExperimentArtefacts) -> str:
     m = artefacts.metadata
     rows = [
         ("Experiment", f"`{m.get('experiment_name', '—')}`"),
@@ -2438,7 +2437,7 @@ def _metadata(artefacts: "ExperimentArtefacts") -> str:
     return _render_section("Metadata", _pipe_table(["Field", "Value"], rows))
 
 
-def _configuration(artefacts: "ExperimentArtefacts") -> str:
+def _configuration(artefacts: ExperimentArtefacts) -> str:
     cfg = artefacts.config
     if cfg is None:
         return "## Configuration\n\n*Config snapshot not available.*"
@@ -2485,9 +2484,9 @@ def _configuration(artefacts: "ExperimentArtefacts") -> str:
 
 
 def _metrics(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     m = artefacts.metrics
     if not m:
@@ -2526,9 +2525,9 @@ def _metrics(
 
 
 def _walk_forward(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Walk-Forward Validation section — expanded with methodology and split timeline."""
     cfg = artefacts.config
@@ -2633,9 +2632,9 @@ def _walk_forward(
 
 
 def _diagnostics_section(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Split-metrics + ML diagnostics section — framed as a research appendix."""
     has_split = isinstance(artefacts.split_metrics, dict)
@@ -2710,7 +2709,7 @@ def _diagnostics_section(
     return _render_section("Diagnostics Appendix", "\n".join(lines))
 
 
-def _build_figure_captions(artefacts: "ExperimentArtefacts") -> dict[str, str]:
+def _build_figure_captions(artefacts: ExperimentArtefacts) -> dict[str, str]:
     """Return display_name → caption mapping from plot_index artefact.
 
     Uses the same stem→display_name normalization as _copy_figures() so
@@ -2737,7 +2736,7 @@ def _build_figure_captions(artefacts: "ExperimentArtefacts") -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
-def _residuals_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _residuals_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Dynamic interpretation for the residual diagnostics figure."""
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
     ps = mmd.get("prediction_stats") or {}
@@ -2761,7 +2760,7 @@ def _residuals_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _cs_ic_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _cs_ic_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Interpretation for cross_sectional_ic — raw daily CS-IC series."""
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
     ic_sum = mmd.get("ic_summary") or {}
@@ -2784,7 +2783,7 @@ def _cs_ic_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _rolling_ic_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _rolling_ic_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Interpretation for ml_ic_regime — 63d rolling mean IC (panel) or rolling Pearson IC."""
     is_panel = _is_panel_mode(artefacts)
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
@@ -2815,12 +2814,12 @@ def _rolling_ic_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _ic_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _ic_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Backward-compatible wrapper — returns rolling IC interpretation."""
     return _rolling_ic_interpretation(artefacts)
 
 
-def _stability_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _stability_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Compose dynamic coefficient stability interpretation from observed diagnostics."""
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
     stab = mmd.get("coefficient_stability_summary") or []
@@ -2843,7 +2842,7 @@ def _stability_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _evolution_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _evolution_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Compose dynamic coefficient evolution interpretation."""
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
     stab = mmd.get("coefficient_stability_summary") or []
@@ -2863,7 +2862,7 @@ def _evolution_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _drawdown_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _drawdown_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Compose dynamic equity/drawdown interpretation from observed metrics."""
     m = artefacts.metrics if isinstance(artefacts.metrics, dict) else {}
     mdd = m.get("max_drawdown")
@@ -2880,7 +2879,7 @@ def _drawdown_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _rolling_da_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _rolling_da_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Dynamic interpretation for the rolling DA / IC-consistency figure."""
     is_panel = _is_panel_mode(artefacts)
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
@@ -2909,7 +2908,7 @@ def _rolling_da_interpretation(artefacts: "ExperimentArtefacts") -> str:
         )
 
 
-def _instability_chain_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _instability_chain_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Analytical chain: coefficient instability → IC degradation → DA → performance.
 
     Returns a concise prose paragraph only when enough data exists to substantiate
@@ -2981,9 +2980,9 @@ def _instability_chain_interpretation(artefacts: "ExperimentArtefacts") -> str:
 
 
 def _ranking_geometry_section(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Render the Cross-Sectional Ranking Geometry subsection (Phase I).
 
@@ -3144,9 +3143,9 @@ def _ranking_geometry_section(
 
 
 def _feature_contribution_section(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Render the Temporal Feature Contribution subsection (Phase II).
 
@@ -3303,9 +3302,9 @@ def _feature_contribution_section(
 
 
 def _prediction_strength_section(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Render the Prediction Confidence & Outcome Monotonicity subsection.
 
@@ -3324,7 +3323,7 @@ def _prediction_strength_section(
     n_obs = ps.get("n_obs", 0)
     horizon = ps.get("horizon", 21)
     n_per_group = ps.get("n_assets_per_group", "—")
-    is_panel = _is_panel_mode(artefacts)
+    _is_panel_mode(artefacts)
 
     top_r = group_means.get("top")
     mid_r = group_means.get("mid")
@@ -3358,7 +3357,7 @@ def _prediction_strength_section(
         table_rows.append(("Long-short spread (top − bottom)", f"{ls_spread:.3%}"))
 
     if table_rows:
-        lines.append(_pipe_table([f"Prediction Group", f"Mean {horizon}D Realized Return"], table_rows))
+        lines.append(_pipe_table(["Prediction Group", f"Mean {horizon}D Realized Return"], table_rows))
         lines.append("")
 
     # Monotonicity verdict
@@ -3416,9 +3415,9 @@ def _prediction_strength_section(
 
 
 def _regime_conditional_behavior(
-    artefacts: "ExperimentArtefacts",
-    figures: "dict[str, Path] | None" = None,
-    claimed: "set[str] | None" = None,
+    artefacts: ExperimentArtefacts,
+    figures: dict[str, Path] | None = None,
+    claimed: set[str] | None = None,
 ) -> str:
     """Render the Regime-Conditional Feature Behaviour subsection.
 
@@ -3555,7 +3554,7 @@ def _regime_conditional_behavior(
     return "\n".join(lines)
 
 
-def _sign_heatmap_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _sign_heatmap_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Dynamic interpretation for the coefficient sign heatmap."""
     mmd = artefacts.ml_model_diagnostics if isinstance(artefacts.ml_model_diagnostics, dict) else {}
     stab = mmd.get("coefficient_stability_summary") or []
@@ -3577,7 +3576,7 @@ def _sign_heatmap_interpretation(artefacts: "ExperimentArtefacts") -> str:
     )
 
 
-def _degradation_interpretation(artefacts: "ExperimentArtefacts") -> str:
+def _degradation_interpretation(artefacts: ExperimentArtefacts) -> str:
     """Compose dynamic train-vs-test degradation interpretation from split metrics."""
     sm = artefacts.split_metrics if isinstance(artefacts.split_metrics, dict) else {}
     summary = sm.get("summary") or {}
@@ -3599,8 +3598,8 @@ def _degradation_interpretation(artefacts: "ExperimentArtefacts") -> str:
 
 def _embed_figure(
     stem: str,
-    figures: "dict[str, Path] | None",
-    claimed: "set[str] | None",
+    figures: dict[str, Path] | None,
+    claimed: set[str] | None,
     interpretation: str = "",
 ) -> str:
     """Render a single figure inline with optional interpretation prose.
@@ -3656,7 +3655,7 @@ def _figures(
 
 
 def _footer(
-    artefacts: "ExperimentArtefacts",
+    artefacts: ExperimentArtefacts,
     generated_at: str,
     report_version: str,
 ) -> str:

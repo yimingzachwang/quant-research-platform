@@ -1,11 +1,8 @@
 """Tests for orchestration.utils.serialization."""
 
 import json
-from pathlib import Path
 
 import pandas as pd
-import pytest
-
 from src.orchestration.utils.serialization import (
     dump_json,
     load_json,

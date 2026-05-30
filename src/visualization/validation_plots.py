@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from src.validation.walk_forward import WalkForwardResult
 from src.visualization.styles import (
     COLORS,
     FIG_WIDTH_FULL,
@@ -167,7 +168,7 @@ def plot_split_sharpes(
     bars = ax.bar(x, values, color=colors, alpha=0.8, width=0.6)
 
     _t = get_typography()
-    for bar, v in zip(bars, values):
+    for bar, v in zip(bars, values, strict=False):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             v + (0.04 if v >= 0 else -0.12),
@@ -315,7 +316,7 @@ def plot_walk_forward_timeline(
 def plot_train_vs_test(
     wf_result,
     metric: str = "sharpe_ratio",
-    train_results: "WalkForwardResult | None" = None,
+    train_results: WalkForwardResult | None = None,
     title: str | None = None,
     save_path: str | None = None,
 ) -> plt.Figure:

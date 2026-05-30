@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
-from src.orchestration.intents.intent_parser import parse, _rule_based_parse
+from src.orchestration.intents.intent_examples import CANONICAL_EXAMPLES
+from src.orchestration.intents.intent_parser import parse
 from src.orchestration.intents.intent_schema import (
     BuildContextIntent,
     BuildEvolutionChainIntent,
@@ -16,7 +16,6 @@ from src.orchestration.intents.intent_schema import (
     ReviewExperimentIntent,
     UnrecognisedIntent,
 )
-from src.orchestration.intents.intent_examples import CANONICAL_EXAMPLES
 
 KNOWN = ["canonical_ml_showcase", "canonical_ml_multi_asset"]
 
@@ -308,7 +307,7 @@ def test_no_known_experiments_no_match():
 
 def test_canonical_examples_parse_without_error():
     """Every CANONICAL_EXAMPLE must parse without raising an exception."""
-    for text, expected_type, note in CANONICAL_EXAMPLES:
+    for text, _expected_type, note in CANONICAL_EXAMPLES:
         result = parse(text, known_experiments=KNOWN)
         assert result is not None, f"parse() returned None for: {text!r} ({note})"
 

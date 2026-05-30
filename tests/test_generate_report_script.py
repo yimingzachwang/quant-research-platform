@@ -2,6 +2,7 @@
 
 Does not invoke generate_experiment_report; all filesystem interaction is mocked.
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 
