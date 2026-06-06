@@ -29,6 +29,10 @@ research = [
   "matplotlib",
   "plotly",
 ]
+mcp = [
+  # Official Python MCP SDK — powers src/mcp/zeto_server.py (LM Studio interface).
+  "mcp>=1.2",
+]
 dev = [
   "black",
   "pre-commit",

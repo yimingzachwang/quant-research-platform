@@ -5,12 +5,17 @@ external code (LLM front-ends, notebooks, CLI tools) should go through this
 module.  It composes retrieval, context building, and LLM review into a
 clean, typed interface.
 
-The quantitative engine is NEVER called from here — only persisted artefacts
-are read.  To run a new experiment, use src.experiments.orchestrator directly.
+The quantitative engine is NEVER called from here, with ONE governed exception:
+``execute_approved_config`` (and its ``execute_and_review_*`` composition) runs
+a single, already-approved YAML config through the existing engine.  That path
+is only ever reached after an explicit, human-authorised request — the advisory
+layer never invokes it on its own, never loops, and never runs more than one
+config per call.  Everything else only reads persisted artefacts.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +44,11 @@ from src.orchestration.api.schemas import (
     PlotMetadata,
     ResearchEvolutionChain,
 )
-from src.orchestration.config_generation.draft_generator import generate_draft, load_draft
+from src.orchestration.config_generation.draft_generator import (
+    generate_draft,
+    load_draft,
+    save_draft,
+)
 from src.orchestration.config_generation.draft_schema import (
     DraftValidationResult,
     ExperimentDraft,
@@ -240,6 +249,7 @@ def run_llm_review(
     persist_review: bool = True,
     temperature: float = 0.2,
     max_tokens: int = 4096,
+    base_url: str | None = None,
 ) -> LLMReviewOutput:
     """Build LLM context and run a review in one call.
 
@@ -268,6 +278,7 @@ def run_llm_review(
         llm_base=llm_base,
         temperature=temperature,
         max_tokens=max_tokens,
+        base_url=base_url,
     )
 
 
@@ -423,6 +434,7 @@ def generate_experiment_draft(
     configs_base: Path | str | None = None,
     max_tokens: int = 1024,
     temperature: float = 0.1,
+    base_url: str | None = None,
 ) -> ExperimentDraft:
     """Generate a typed ExperimentDraft from the most recent IterationProposal.
 
@@ -444,6 +456,7 @@ def generate_experiment_draft(
         configs_base=configs_base,
         max_tokens=max_tokens,
         temperature=temperature,
+        base_url=base_url,
     )
 
 
@@ -460,14 +473,21 @@ def validate_experiment_draft(
     return validate_draft(draft, base=base, configs_base=configs_base)
 
 
-def approve_experiment_draft(draft: ExperimentDraft) -> ExperimentDraft:
-    """Mark a draft as approved, recomputing its hash.
+def approve_experiment_draft(
+    draft: ExperimentDraft,
+    llm_base: Path | str | None = None,
+) -> ExperimentDraft:
+    """Mark a draft as approved, recomputing its hash, and persist it.
 
-    Returns a new ExperimentDraft with approved=True.  The researcher is
-    responsible for validating before approving.  Only approved drafts can
-    be rendered to YAML.
+    Returns a new ExperimentDraft with approved=True.  The approved draft is
+    written back to disk so a later, stateless ``load_experiment_draft`` (e.g.
+    from a separate API/MCP call) sees the approval before rendering.  The
+    researcher is responsible for validating before approving.  Only approved
+    drafts can be rendered to YAML.
     """
-    return approve_draft(draft)
+    approved = approve_draft(draft)
+    save_draft(approved, llm_base)
+    return approved
 
 
 def render_draft_to_yaml(
@@ -573,6 +593,25 @@ def list_research_sessions(sessions_base: Path | str | None = None) -> list[str]
     return list_session_ids(sessions_base)
 
 
+def get_latest_research_session(
+    sessions_base: Path | str | None = None,
+) -> ResearchSession | None:
+    """Return the most recently updated ResearchSession, or None if none exist.
+
+    Read-only recovery helper: lets a caller that has lost the session_id find
+    the active session again.  Loads persisted sessions and returns the one with
+    the latest ``updated_at``.  Never raises.
+    """
+    sessions = [
+        s
+        for sid in list_session_ids(sessions_base)
+        if (s := _load_session(sid, sessions_base)) is not None
+    ]
+    if not sessions:
+        return None
+    return max(sessions, key=lambda s: s.updated_at)
+
+
 def build_research_evolution_chain(
     root_experiment: str,
     base: Path | str | None = None,
@@ -600,3 +639,365 @@ def build_research_evolution_chain(
     if persist:
         persist_evolution_chain(chain, evolution_base)
     return chain
+
+
+# ---------------------------------------------------------------------------
+# Provenance helper
+# ---------------------------------------------------------------------------
+
+
+def compute_context_hash(context: LLMContext) -> str:
+    """Public wrapper over the review engine's deterministic context hash.
+
+    Lets callers (demo, API endpoint) record the provenance hash of a context
+    without importing a private symbol.
+    """
+    from src.orchestration.llm.review_engine import _compute_context_hash
+
+    return _compute_context_hash(context)
+
+
+# ---------------------------------------------------------------------------
+# Persisted-artefact path accessors (so compact callers can return references
+# to full outputs on disk instead of inlining them)
+# ---------------------------------------------------------------------------
+
+
+def review_artifact_path(experiment_name: str, llm_base: Path | str | None = None) -> str:
+    """Path to the persisted LLM review JSON for an experiment."""
+    from src.orchestration.utils.filesystem import llm_review_path
+
+    return str(llm_review_path(experiment_name, llm_base))
+
+
+def proposal_artifact_path(experiment_name: str, llm_base: Path | str | None = None) -> str:
+    """Path to the persisted iteration-proposal JSON for an experiment."""
+    from src.orchestration.utils.filesystem import iteration_proposal_json_path
+
+    return str(iteration_proposal_json_path(experiment_name, llm_base))
+
+
+def draft_artifact_path(
+    experiment_name: str,
+    draft_id: str,
+    llm_base: Path | str | None = None,
+) -> str:
+    """Path to the persisted draft JSON for an experiment + draft id."""
+    from src.orchestration.utils.filesystem import draft_json_path
+
+    return str(draft_json_path(experiment_name, draft_id, llm_base))
+
+
+# ---------------------------------------------------------------------------
+# Governed execution bridge (Phase 5)
+#
+# Human-controlled execution only.  The advisory layer never calls these
+# functions on its own — they are reached solely through an explicit researcher
+# action (a confirmed CLI flag or an authorised API request).  Each call runs
+# exactly one already-approved config; there is no loop, no retry, and no
+# metric-driven re-run.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ExecutionResult:
+    """Outcome of running one approved config through the existing engine."""
+
+    config_path: str
+    experiment_name: str | None
+    success: bool
+    artefact_root: str | None
+    report_path: str | None
+    error: str | None = None
+    command_hint: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "config_path": self.config_path,
+            "experiment_name": self.experiment_name,
+            "success": self.success,
+            "artefact_root": self.artefact_root,
+            "report_path": self.report_path,
+            "error": self.error,
+            "command_hint": self.command_hint,
+        }
+
+
+@dataclass
+class ExecutionReviewResult:
+    """Execution plus the LLM review of the freshly generated artefacts.
+
+    ``review`` is None when execution failed, was a dry run, or produced no
+    identifiable experiment — post-run review never runs on a failed execution.
+    """
+
+    execution: ExecutionResult
+    review: LLMReviewOutput | None
+    context_hash: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "execution": self.execution.to_dict(),
+            "review": self.review.to_dict() if self.review is not None else None,
+            "context_hash": self.context_hash,
+        }
+
+
+def _execution_command_hint(config_path: Path, report: bool, preset: str) -> str:
+    cmd = f"python scripts/run_from_config.py {config_path}"
+    if report:
+        cmd += f" --report --preset {preset}"
+    return cmd
+
+
+def execute_approved_config(
+    config_path: str | Path,
+    report: bool = True,
+    preset: str = "canonical",
+    dry_run: bool = False,
+    report_output_dir: str | Path | None = None,
+) -> ExecutionResult:
+    """Run exactly one approved YAML config through the existing engine.
+
+    This reuses the same code path as ``scripts/run_from_config.py`` — it does
+    not duplicate or re-implement any experiment-running logic.  The engine
+    module is imported lazily so the orchestration import graph stays light and
+    so this heavy dependency is only loaded when execution is actually invoked.
+
+    Args:
+        config_path:       Path to an approved, rendered YAML config.
+        report:            Whether to generate a report (uses ``preset``).
+        preset:            Report preset when ``report`` is True.
+        dry_run:           If True, return the planned command without running.
+        report_output_dir: Optional report output directory.
+
+    Returns:
+        ExecutionResult.  ``success=False`` carries a human-readable ``error``;
+        this function never raises for an engine/IO failure.
+    """
+    config_path = Path(config_path)
+    command_hint = _execution_command_hint(config_path, report, preset)
+
+    if dry_run:
+        return ExecutionResult(
+            config_path=str(config_path),
+            experiment_name=None,
+            success=True,
+            artefact_root=None,
+            report_path=None,
+            error=None,
+            command_hint=command_hint,
+        )
+
+    if not config_path.exists():
+        return ExecutionResult(
+            config_path=str(config_path),
+            experiment_name=None,
+            success=False,
+            artefact_root=None,
+            report_path=None,
+            error=f"Config not found: {config_path}",
+            command_hint=command_hint,
+        )
+
+    try:
+        # Lazy import — same engine entry points used by run_from_config.py.
+        from src.experiments.orchestrator import (
+            run_and_report,
+            run_experiment_from_config,
+        )
+
+        if report:
+            run, paths = run_and_report(
+                config_path,
+                report_spec=_resolve_report_preset(preset),
+                **({"report_output_dir": report_output_dir} if report_output_dir else {}),
+            )
+            report_path = str(getattr(paths, "markdown", "") or "") or None
+        else:
+            run = run_experiment_from_config(config_path)
+            report_path = None
+
+        artefact_root = Path(run.output_path)
+        return ExecutionResult(
+            config_path=str(config_path),
+            experiment_name=artefact_root.name,
+            success=True,
+            artefact_root=str(artefact_root),
+            report_path=report_path,
+            error=None,
+            command_hint=command_hint,
+        )
+    except Exception as exc:  # noqa: BLE001 — surface a clean result, never raise
+        return ExecutionResult(
+            config_path=str(config_path),
+            experiment_name=None,
+            success=False,
+            artefact_root=None,
+            report_path=None,
+            error=f"{type(exc).__name__}: {exc}",
+            command_hint=command_hint,
+        )
+
+
+def _resolve_report_preset(preset: str) -> Any:
+    """Map a preset name to a report spec, mirroring run_from_config.py."""
+    from src.reporting.report_spec import (
+        AUDIT_REPORT,
+        CANONICAL_SHOWCASE,
+        COMPACT_REPORT,
+        DIAGNOSTICS_REPORT,
+        STANDARD_REPORT,
+    )
+
+    return {
+        "standard": STANDARD_REPORT,
+        "canonical": CANONICAL_SHOWCASE,
+        "compact": COMPACT_REPORT,
+        "diagnostics": DIAGNOSTICS_REPORT,
+        "audit": AUDIT_REPORT,
+    }.get(preset, CANONICAL_SHOWCASE)
+
+
+def execute_and_review_approved_config(
+    config_path: str | Path,
+    provider: str = "stub",
+    model: str | None = None,
+    base_url: str | None = None,
+    report: bool = True,
+    preset: str = "canonical",
+    dry_run: bool = False,
+) -> ExecutionReviewResult:
+    """Run one approved config, then LLM-review the freshly generated artefacts.
+
+    Composition only — no new execution or review logic.  Post-run review is
+    skipped when execution fails, is a dry run, or yields no experiment name.
+    Session-event recording is the caller's responsibility.
+    """
+    execution = execute_approved_config(
+        config_path,
+        report=report,
+        preset=preset,
+        dry_run=dry_run,
+    )
+
+    if dry_run or not execution.success or not execution.experiment_name:
+        return ExecutionReviewResult(execution=execution, review=None, context_hash=None)
+
+    context = build_llm_context(execution.experiment_name, persist=False)
+    context_hash = compute_context_hash(context)
+    review = run_llm_review(
+        execution.experiment_name,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        persist_context=False,
+        persist_review=True,
+    )
+    return ExecutionReviewResult(
+        execution=execution,
+        review=review,
+        context_hash=context_hash,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Workflow state (read-only inspection)
+# ---------------------------------------------------------------------------
+
+
+def get_research_workflow_state(
+    experiment_name: str,
+    base: Path | str | None = None,
+    llm_base: Path | str | None = None,
+    configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
+) -> dict[str, Any]:
+    """Report the on-disk state of one experiment's research workflow.
+
+    Pure read-only inspection — checks only for the presence of artefacts on
+    disk.  Executes nothing, calls no LLM, and never touches the quant engine.
+
+    Returned keys (all plain primitives):
+        experiment_name, baseline_artefacts_exist, metadata_exists,
+        metrics_exists, context_ready, review_exists, proposal_exists,
+        draft_exists, latest_draft_id, latest_draft_approved, proposed_name,
+        rendered_yaml_exists, rendered_yaml_path, revised_artefacts_exist,
+        report_path, plots_dir
+    """
+    from src.orchestration.utils.filesystem import (
+        experiment_config_path,
+        experiment_root,
+        iteration_proposal_json_path,
+        llm_review_dir,
+        llm_review_path,
+        metadata_path,
+        metrics_path,
+        plots_dir,
+        report_markdown_path,
+    )
+    from src.orchestration.utils.serialization import load_json
+
+    metadata_exists = metadata_path(experiment_name, base).exists()
+    metrics_exists = metrics_path(experiment_name, base).exists()
+    context_ready = metadata_exists and metrics_exists
+    baseline_artefacts_exist = (
+        experiment_root(experiment_name, base).exists() and context_ready
+    )
+
+    review_exists = llm_review_path(experiment_name, llm_base).exists()
+    proposal_exists = iteration_proposal_json_path(experiment_name, llm_base).exists()
+
+    # Locate the most recent draft (by generated_at) without mutating anything.
+    review_dir = llm_review_dir(experiment_name, llm_base)
+    latest_draft: dict[str, Any] | None = None
+    if review_dir.exists():
+        drafts = [d for f in sorted(review_dir.glob("draft_*.json")) if (d := load_json(f))]
+        if drafts:
+            drafts.sort(key=lambda d: str(d.get("generated_at", "")))
+            latest_draft = drafts[-1]
+
+    draft_exists = latest_draft is not None
+    latest_draft_id = latest_draft.get("draft_id") if latest_draft else None
+    latest_draft_approved = bool(latest_draft.get("approved")) if latest_draft else False
+    proposed_name = latest_draft.get("proposed_name") if latest_draft else None
+
+    rendered_yaml_exists = False
+    rendered_yaml_path: str | None = None
+    revised_artefacts_exist = False
+    revised_report: str | None = None
+    revised_plots: str | None = None
+    if proposed_name:
+        cfg = experiment_config_path(proposed_name, configs_base)
+        rendered_yaml_exists = cfg.exists()
+        rendered_yaml_path = str(cfg) if rendered_yaml_exists else None
+        revised_artefacts_exist = metadata_path(proposed_name, base).exists()
+        rp = report_markdown_path(proposed_name, reports_base)
+        revised_report = str(rp) if rp.exists() else None
+        rpl = plots_dir(proposed_name, base)
+        revised_plots = str(rpl) if rpl.exists() else None
+
+    base_report = report_markdown_path(experiment_name, reports_base)
+    base_report_path = str(base_report) if base_report.exists() else None
+    base_plots = plots_dir(experiment_name, base)
+    base_plots_dir = str(base_plots) if base_plots.exists() else None
+
+    return {
+        "experiment_name": experiment_name,
+        "baseline_artefacts_exist": baseline_artefacts_exist,
+        "metadata_exists": metadata_exists,
+        "metrics_exists": metrics_exists,
+        "context_ready": context_ready,
+        "review_exists": review_exists,
+        "proposal_exists": proposal_exists,
+        "draft_exists": draft_exists,
+        "latest_draft_id": latest_draft_id,
+        "latest_draft_approved": latest_draft_approved,
+        "proposed_name": proposed_name,
+        "rendered_yaml_exists": rendered_yaml_exists,
+        "rendered_yaml_path": rendered_yaml_path,
+        "revised_artefacts_exist": revised_artefacts_exist,
+        # Prefer the revised experiment's artefacts when present, else baseline.
+        "report_path": revised_report or base_report_path,
+        "plots_dir": revised_plots or base_plots_dir,
+    }

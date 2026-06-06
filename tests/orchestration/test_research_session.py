@@ -65,7 +65,7 @@ class TestSessionStatus:
 
 
 class TestSessionEventType:
-    def test_all_seven_types_defined(self):
+    def test_all_event_types_defined(self):
         expected = {
             "REVIEW_GENERATED",
             "ITERATION_PROPOSAL_GENERATED",
@@ -74,6 +74,10 @@ class TestSessionEventType:
             "DRAFT_APPROVED",
             "YAML_RENDERED",
             "EXPERIMENT_LINKED",
+            # Governed execution bridge (Phase 5).
+            "EXECUTION_REQUESTED",
+            "EXECUTION_COMPLETED",
+            "POST_RUN_REVIEW_GENERATED",
         }
         actual = {v for k, v in vars(SessionEventType).items() if not k.startswith("_")}
         assert actual == expected
@@ -788,3 +792,34 @@ class TestNonCoupling:
             build_research_evolution_chain,
         ]:
             assert callable(fn)
+
+
+class TestGetLatestResearchSession:
+    """research_api.get_latest_research_session — read-only recovery helper."""
+
+    def test_none_when_no_sessions(self, tmp_path):
+        from src.orchestration.api.research_api import get_latest_research_session
+        assert get_latest_research_session(sessions_base=tmp_path) is None
+
+    def test_returns_most_recently_updated(self, tmp_path):
+        from src.orchestration.api.research_api import (
+            create_research_session,
+            get_latest_research_session,
+            record_session_event,
+        )
+        from src.orchestration.session.session_schema import SessionEventType
+
+        s1 = create_research_session("exp_a", "goal a", sessions_base=tmp_path)
+        create_research_session("exp_b", "goal b", sessions_base=tmp_path)
+        # Bump s1's updated_at so it becomes the latest.
+        record_session_event(
+            s1,
+            event_type=SessionEventType.REVIEW_GENERATED,
+            experiment_name="exp_a",
+            data={"provider": "stub"},
+            sessions_base=tmp_path,
+        )
+
+        latest = get_latest_research_session(sessions_base=tmp_path)
+        assert latest is not None
+        assert latest.session_id == s1.session_id

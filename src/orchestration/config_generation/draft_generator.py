@@ -10,6 +10,7 @@ Mirrors iteration_engine.py in structure and style.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import re
@@ -26,7 +27,7 @@ from src.orchestration.config_generation.draft_schema import (
     compute_draft_hash,
 )
 from src.orchestration.llm.llm_interface import call_llm
-from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC
+from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC, PROVIDER_STUB
 from src.orchestration.utils.filesystem import (
     draft_json_path,
     experiment_config_path,
@@ -90,6 +91,7 @@ def generate_draft(
     configs_base: Path | str | None = None,
     max_tokens: int = 1024,
     temperature: float = 0.1,
+    base_url: str | None = None,
 ) -> ExperimentDraft:
     """Generate a typed ExperimentDraft from the most recent IterationProposal.
 
@@ -135,19 +137,28 @@ def generate_draft(
     # 2. Load IterationProposal
     proposal = _load_proposal(experiment_name, proposal_hash, llm_base)
 
-    # 3. Build prompt and call LLM
+    # 3. Build prompt and obtain a structured JSON response.
+    #    The stub provider returns a fixed placeholder string that is not valid
+    #    JSON, so for provider="stub" only we substitute a deterministic,
+    #    schema-valid change set (the same one the terminal demo uses:
+    #    model.params.alpha -> 1.0).  Real providers go through call_llm.
     prompt = _build_prompt(experiment_name, base_config, proposal)
-    resp = call_llm(
-        prompt,
-        provider=provider,
-        model=model,
-        system=_LLM_SYSTEM,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
+    if provider == PROVIDER_STUB:
+        resp_text = _stub_draft_response(experiment_name)
+    else:
+        resp = call_llm(
+            prompt,
+            provider=provider,
+            model=model,
+            system=_LLM_SYSTEM,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            base_url=base_url,
+        )
+        resp_text = resp.text
 
     # 4. Parse structured JSON response
-    raw_changes, proposed_name = _parse_llm_response(resp.text, experiment_name)
+    raw_changes, proposed_name = _parse_llm_response(resp_text, experiment_name)
 
     # 5. Build DraftChange list — current_value from base config, not from LLM
     changes = _build_changes(base_config, raw_changes)
@@ -177,6 +188,20 @@ def generate_draft(
 # ---------------------------------------------------------------------------
 # Public loader
 # ---------------------------------------------------------------------------
+
+
+def save_draft(
+    draft: ExperimentDraft,
+    llm_base: Path | str | None = None,
+) -> Path:
+    """Persist an ExperimentDraft to its canonical path, overwriting in place.
+
+    Used to persist state transitions (e.g. approval) so that a later, stateless
+    load_draft() reflects the updated draft.  Returns the written path.
+    """
+    path = draft_json_path(draft.base_experiment, draft.draft_id, llm_base)
+    dump_json(draft.to_dict(), path)
+    return path
 
 
 def load_draft(
@@ -223,7 +248,10 @@ def _load_proposal(
             f"No IterationProposal found for {experiment_name!r} at {path}. "
             "Run generate_iteration_proposal() first."
         )
-    proposal = IterationProposal(**data)  # type: ignore[arg-type]
+    # Persisted proposals carry provenance keys (e.g. iteration_version) that
+    # are not IterationProposal fields; keep only recognised dataclass fields.
+    known = {f.name for f in dataclasses.fields(IterationProposal)}
+    proposal = IterationProposal(**{k: v for k, v in data.items() if k in known})  # type: ignore[arg-type]
     if proposal_hash is not None and proposal.context_hash != proposal_hash:
         raise ValueError(
             f"Proposal hash mismatch for {experiment_name!r}: "
@@ -275,6 +303,32 @@ def _build_prompt(
         "",
         "Extract the specific parameter changes as JSON using the schema in the system prompt.",
     ])
+
+
+def _stub_draft_response(experiment_name: str) -> str:
+    """Deterministic, schema-valid draft JSON for the stub provider.
+
+    The stub LLM returns a non-JSON placeholder, so this supplies a minimal
+    schema-conforming change set (stronger L2 regularisation) so the stub path
+    yields a usable draft for demos and tests.  ``current_value`` is still read
+    from the base config by the normal flow, not from here.
+    """
+    return json.dumps(
+        {
+            "proposed_name": f"{experiment_name}_v2",
+            "changes": [
+                {
+                    "section": "model",
+                    "field": "params.alpha",
+                    "proposed_value": 1.0,
+                    "rationale": (
+                        "Increase L2 regularisation to stabilise coefficients and "
+                        "improve out-of-sample validation consistency."
+                    ),
+                }
+            ],
+        }
+    )
 
 
 def _parse_llm_response(

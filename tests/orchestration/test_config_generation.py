@@ -621,6 +621,29 @@ class TestGenerateDraft:
         assert change.current_value == 0.5
         assert change.proposed_value == 1.0
 
+    def test_stub_provider_returns_deterministic_draft(self, tmp_path):
+        # No call_llm mock: the stub provider must yield a valid, schema-shaped
+        # draft on its own (the stub LLM otherwise returns non-JSON).
+        cfg_dir = _make_config_file(tmp_path)
+        llm_dir = self._make_proposal_file(tmp_path)
+
+        from src.orchestration.config_generation.draft_generator import generate_draft
+        draft = generate_draft(
+            "canonical_ml_showcase",
+            provider="stub",
+            llm_base=llm_dir,
+            configs_base=cfg_dir,
+        )
+
+        assert isinstance(draft, ExperimentDraft)
+        assert draft.approved is False
+        assert draft.proposed_name == "canonical_ml_showcase_v2"
+        assert len(draft.changes) == 1
+        change = draft.changes[0]
+        assert (change.section, change.field) == ("model", "params.alpha")
+        assert change.current_value == 0.5   # filled from base config
+        assert change.proposed_value == 1.0
+
     def test_persists_draft_to_disk(self, tmp_path):
         cfg_dir = _make_config_file(tmp_path)
         llm_dir = self._make_proposal_file(tmp_path)

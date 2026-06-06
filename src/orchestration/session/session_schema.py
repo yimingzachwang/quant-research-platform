@@ -36,6 +36,11 @@ class SessionEventType:
     DRAFT_APPROVED               = "DRAFT_APPROVED"
     YAML_RENDERED                = "YAML_RENDERED"
     EXPERIMENT_LINKED            = "EXPERIMENT_LINKED"
+    # Governed, human-authorised execution bridge (advisory layer never
+    # triggers these by itself — a researcher must explicitly authorise).
+    EXECUTION_REQUESTED          = "EXECUTION_REQUESTED"
+    EXECUTION_COMPLETED          = "EXECUTION_COMPLETED"
+    POST_RUN_REVIEW_GENERATED    = "POST_RUN_REVIEW_GENERATED"
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +63,11 @@ class SessionEvent:
                        DRAFT_APPROVED:               draft_id, draft_hash
                        YAML_RENDERED:                draft_id, config_path
                        EXPERIMENT_LINKED:            new_experiment
+                       EXECUTION_REQUESTED:          config_path, preset, report
+                       EXECUTION_COMPLETED:          config_path, experiment_name,
+                                                     artefact_root, report_path
+                       POST_RUN_REVIEW_GENERATED:    experiment_name, context_hash,
+                                                     provider
     """
 
     event_id:        str

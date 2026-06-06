@@ -105,3 +105,24 @@ class RouteRequest(BaseModel):
     session_id: str | None = None
     provider: str = "stub"
     model: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Governed execution request schema
+# ---------------------------------------------------------------------------
+
+
+class ExecuteApprovedConfigRequest(BaseModel):
+    """Explicit, human-authorised request to run ONE approved config.
+
+    Reaching this endpoint is itself the researcher's authorisation; the
+    advisory layer never calls it on its own.
+    """
+
+    config_path: str
+    provider: str = "stub"
+    model: str | None = None
+    base_url: str | None = None
+    report: bool = True
+    preset: str = "canonical"
+    dry_run: bool = False
