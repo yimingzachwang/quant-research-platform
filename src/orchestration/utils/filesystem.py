@@ -231,9 +231,13 @@ def experiment_config_path(name: str, configs_base: Path | str | None = None) ->
 _LLM_REVIEWS_DIR = Path("results/llm_reviews")
 
 
+def llm_reviews_root(base: Path | str | None = None) -> Path:
+    """Root directory holding per-experiment LLM review subdirectories."""
+    return Path(base) if base else _LLM_REVIEWS_DIR
+
+
 def llm_review_dir(name: str, base: Path | str | None = None) -> Path:
-    root = Path(base) if base else _LLM_REVIEWS_DIR
-    return root / name
+    return llm_reviews_root(base) / name
 
 
 def llm_context_path(name: str, base: Path | str | None = None) -> Path:
@@ -351,6 +355,22 @@ def list_session_ids(base: Path | str | None = None) -> list[str]:
         p.name for p in root.iterdir()
         if p.is_dir() and (p / "session.json").exists()
     )
+
+
+# ---------------------------------------------------------------------------
+# Research memory paths (Phase 1 metadata/keyword RAG)
+# ---------------------------------------------------------------------------
+
+_RESEARCH_MEMORY_DIR = Path("results/research_memory")
+
+
+def research_memory_root(base: Path | str | None = None) -> Path:
+    return Path(base) if base else _RESEARCH_MEMORY_DIR
+
+
+def memory_index_path(base: Path | str | None = None) -> Path:
+    """Path to the local JSONL research-memory index."""
+    return research_memory_root(base) / "memory_index.jsonl"
 
 
 # ---------------------------------------------------------------------------

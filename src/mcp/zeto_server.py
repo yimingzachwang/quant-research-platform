@@ -157,17 +157,30 @@ def _review_experiment(
 
     Compact: returns context_hash, short flags (name+severity), section NAMES,
     and the path to the persisted review.  Full section bodies stay on disk.
+
+    On any LLM failure or timeout this returns a clean ok=false envelope and
+    stops — it never auto-retries the review (the user must ask again).
     """
-    review = _api.run_llm_review(
-        experiment_name,
-        provider=provider,
-        model=model,
-        base_url=base_url,
-        persist_context=False,
-        persist_review=True,
-    )
-    ctx = _api.build_llm_context(experiment_name, persist=False)
-    context_hash = _api.compute_context_hash(ctx)
+    try:
+        review = _api.run_llm_review(
+            experiment_name,
+            provider=provider,
+            model=model,
+            base_url=base_url,
+            persist_context=False,
+            persist_review=True,
+        )
+        ctx = _api.build_llm_context(experiment_name, persist=False)
+        context_hash = _api.compute_context_hash(ctx)
+    except Exception as exc:  # noqa: BLE001 — surface a clean envelope, never a traceback
+        fail_stage = stage.replace("_generated", "_failed")
+        return _envelope(
+            False, fail_stage,
+            f"{label} FAILED for '{experiment_name}': {type(exc).__name__}: {exc}. "
+            "Stop and report the failure. Do not auto-retry unless the user asks.",
+            {"experiment_name": experiment_name, "error": f"{type(exc).__name__}: {exc}"},
+            "stop_and_report_to_user",
+        )
     _record_event(
         session_id,
         event_type,
@@ -206,15 +219,40 @@ _OPERATOR_RULES: tuple[str, ...] = (
     "Store the session_id UUID returned by create_research_session.",
     "Pass session_id to all session-aware tools (review, proposal, draft, "
     "validate, approve, render, execute, post-run review, get_session_summary).",
-    "If session_id is lost, call get_latest_research_session to recover it.",
+    "If a session exists, always pass its session_id to approve/render/execute/"
+    "post-run review; do not pass session_id=null while an active session exists.",
+    "If session_id is lost, call get_latest_research_session before continuing.",
     "Never use experiment_name, context_hash, draft_id, or config_path as session_id.",
     "Never invent metrics; use tool outputs only.",
     "Never invent or hand-write draft configs; drafts come from generate_experiment_draft only.",
     "If a tool returns ok=false, report the failure verbatim and stop.",
-    "Do not auto-approve drafts; ask the user before approval.",
+    "If validation fails, report the failure and stop; do not repeatedly call generate_experiment_draft.",
+    "If validation fails because the proposed experiment name already exists, "
+    "ask the user whether to use the next available suffix or clean existing local demo artefacts.",
+    "Approval requires approval_confirmation='APPROVE'; validation success never authorises approval.",
+    "Only a fresh user message that explicitly approves (prefer 'I approve the draft.') "
+    "authorises approve_experiment_draft; never infer approval from 'start a research "
+    "cycle' or a next_suggested_action.",
+    "After approval_refused, stop and wait for the user; do not retry automatically.",
     "Do not render YAML unless the user approves the draft.",
     "Do not execute unless the user explicitly provides RUN (confirmation='RUN').",
+    "Do not treat 'execute', 'yes', 'proceed', or 'continue' as RUN; only a fresh "
+    "user message containing the literal token RUN authorises execution.",
+    "Never infer RUN from a previous approval, a previous render, or a prior "
+    "failed/refused execution attempt.",
+    "After execution_refused, stop and wait for a new user message; do not retry "
+    "execute_approved_config automatically.",
     "Do not run extra experiments, optimise automatically, or loop.",
+    "A high-level request such as 'start a research cycle' does NOT authorise "
+    "approval, rendering, or execution; it only authorises the read/advisory steps.",
+    "Stop after validate_experiment_draft passes and ask the user for approval; "
+    "validation never authorises approval.",
+    "Stop after render_draft_to_yaml and ask the user for RUN; rendering never authorises execution.",
+    "Stop after the final get_session_summary; the research cycle is complete.",
+    "Do not start a second iteration (new proposal, draft, or experiment) unless the user explicitly asks.",
+    "Before review/proposal/draft, optionally call retrieve_research_memory for prior related evidence.",
+    "Research memory is evidence-only; retrieved memory does not authorise execution or approval.",
+    "Do not use memory as proof of performance; quant metrics remain authoritative.",
     "For local Qwen-backed review/proposal/draft, use provider=openai, model=qwen2.5-7b-instruct, base_url=http://127.0.0.1:1234/v1.",
     "Governed sequence: create session -> check state -> execute baseline if "
     "needed -> build context -> review -> proposal -> draft -> validate -> "
@@ -244,6 +282,74 @@ def get_zeto_operator_manual() -> dict[str, Any]:
     return _envelope(
         True, "operator_manual_loaded", display, data, "check_research_workflow_state"
     )
+
+
+# ---------------------------------------------------------------------------
+# Research memory tools (Phase 1 — metadata/keyword RAG)
+#
+# Evidence-only. These tools index compact summaries of existing artefacts and
+# retrieve prior research evidence by deterministic keyword/metadata matching.
+# They run no experiment, call no LLM, approve nothing, render nothing, and
+# never authorise execution. Full artefacts stay on disk; only compact pointers
+# (summaries, paths, hashes, tags, matched terms) are returned.
+# ---------------------------------------------------------------------------
+
+
+def get_research_memory_status() -> dict[str, Any]:
+    """Read-only: report whether the research-memory index exists and its size."""
+    status = _api.get_research_memory_status()
+    if status["index_exists"]:
+        display = (
+            f"Research memory contains {status['item_count']} indexed item(s) "
+            f"across {status['experiment_count']} experiment(s)."
+        )
+        next_action = "retrieve_research_memory"
+    else:
+        display = "Research memory index does not exist yet. Run index_research_memory."
+        next_action = "index_research_memory"
+    return _envelope(True, "research_memory_status", display, status, next_action)
+
+
+def index_research_memory() -> dict[str, Any]:
+    """Controlled write: build/refresh the memory index from known artefacts only.
+
+    Runs no experiment, calls no LLM, approves/renders/executes nothing, and
+    never mutates source artefacts. Reads only known Zeto artefact locations.
+    """
+    result = _api.index_research_memory()
+    display = (
+        f"Indexed {result['indexed_count']} research memory item(s) across "
+        f"{result['experiment_count']} experiment(s)."
+    )
+    return _envelope(
+        True, "research_memory_indexed", display, result, "retrieve_research_memory"
+    )
+
+
+def retrieve_research_memory(
+    query: str | None = None,
+    experiment_name: str | None = None,
+    failure_modes: list[str] | None = None,
+    artefact_type: str | None = None,
+    top_k: int = 5,
+) -> dict[str, Any]:
+    """Read-only: retrieve prior research evidence by keyword/metadata match.
+
+    Returns up to top_k compact items (summaries, paths, hashes, tags, matched
+    terms) — never full artefact contents. Evidence only: a result authorises no
+    execution, approval, or rendering; quant metrics remain authoritative.
+    """
+    items = _api.retrieve_research_memory(
+        query=query,
+        experiment_name=experiment_name,
+        failure_modes=failure_modes,
+        artefact_type=artefact_type,
+        top_k=top_k,
+    )
+    focus = ", ".join(failure_modes) if failure_modes else (query or experiment_name or "recent")
+    display = f"Retrieved {len(items)} related memory item(s) for {_short(focus, 80)}."
+    data = {"item_count": len(items), "items": items}
+    return _envelope(True, "research_memory_retrieved", display, data, "run_experiment_review")
 
 
 # ---------------------------------------------------------------------------
@@ -317,9 +423,11 @@ def get_session_summary(session_id: str) -> dict[str, Any]:
     display = (
         f"Session {summary['session_id']}: {summary['event_count']} event(s); "
         f"active draft: {active_draft_id or 'none'}; "
-        f"approved config: {summary['approved_config_path'] or 'none'}"
+        f"approved config: {summary['approved_config_path'] or 'none'}. "
+        "Research cycle complete — stop. Do not start another proposal, draft, or "
+        "experiment unless the user explicitly asks."
     )
-    return _envelope(True, "session_summary", display, data, "run_experiment_review")
+    return _envelope(True, "session_summary", display, data, "stop_cycle_complete")
 
 
 def list_research_sessions() -> dict[str, Any]:
@@ -615,34 +723,82 @@ def validate_experiment_draft(
         {"draft_id": draft_id, "is_valid": result.is_valid, "error_count": len(result.errors)},
     )
     errors = [_short(e, 160) for e in result.errors[:3]]
+    # A duplicate proposed name is the one recoverable failure — it has a clean
+    # resolution (a new suffix or cleaning demo artefacts).  Every other failure
+    # is non-recoverable here and the model must stop, not regenerate.
+    duplicate_name = (not result.is_valid) and any(
+        "already exists" in e for e in result.errors
+    )
     data = {
         "experiment_name": experiment_name,
         "draft_id": draft_id,
         "is_valid": result.is_valid,
         "rendering_blocked": not result.is_valid,
+        "duplicate_proposed_name": duplicate_name,
+        "recoverable": duplicate_name,
         "error_count": len(result.errors),
         "errors": errors,
     }
     if result.is_valid:
-        display = "Validation PASS — rendering is NOT blocked. Approval still required."
-        next_action = "approve_experiment_draft"
+        # Governance boundary: validation never authorises approval. Stop here and
+        # hand control back to the user — do NOT auto-advance to approval.
+        display = (
+            "Validation PASS — approval still required. Stop and ask the user "
+            "before approving or rendering."
+        )
+        next_action = "ask_user_for_approval"
+    elif duplicate_name:
+        # Recoverable, but still requires the user to choose — never auto-loop.
+        display = (
+            "Validation FAILED — proposed experiment name already exists; "
+            "rendering is BLOCKED. Stop and ask the user whether to use the next "
+            "available name suffix or clean existing local demo artefacts. Do not "
+            "regenerate repeatedly."
+        )
+        next_action = "ask_user_resolve_duplicate_name"
     else:
-        display = "Validation FAIL — rendering is BLOCKED. Errors: " + "; ".join(errors)
-        next_action = "generate_experiment_draft"
+        # Non-recoverable: stop and report, do NOT regenerate the same draft.
+        display = (
+            "Validation FAILED — rendering is BLOCKED. Stop and ask the user how "
+            "to proceed. Do not regenerate repeatedly. Errors: " + "; ".join(errors)
+        )
+        next_action = "stop_and_report_to_user"
     return _envelope(result.is_valid, "draft_validated", display, data, next_action)
 
 
 def approve_experiment_draft(
     experiment_name: str,
     draft_id: str,
+    approval_confirmation: str = "",
     session_id: str | None = None,
+    render_requested: bool = False,
 ) -> dict[str, Any]:
     """Explicitly approve a draft so it can be rendered to YAML.
 
-    Approval is performed only by this tool — no other tool auto-approves.
-    The approved draft is persisted.  Records DRAFT_APPROVED when a session_id
-    is given.
+    Requires approval_confirmation='APPROVE'. Approval is performed only by this
+    tool — no other tool auto-approves — and only when the latest user message
+    explicitly approves the draft.  Records DRAFT_APPROVED when a session_id is
+    given.
+
+    Call this ONLY when the latest user instruction explicitly approves the draft.
+    Never infer approval from 'start a research cycle', from validation success,
+    or from a next_suggested_action; never approve automatically after validation.
+
+    render_requested: set True ONLY when the user explicitly asked to approve AND
+    render in the same message. It does not render anything here; it only controls
+    whether the suggested next step is render_draft_to_yaml (when True) or
+    ask_user_to_render_yaml (when False — the default, which stops for the user).
     """
+    if approval_confirmation != "APPROVE":
+        # Tool-enforced approval gate: refuse before loading/mutating any state.
+        # A refusal must NOT loop back into this tool — stop and wait for the user.
+        return _envelope(
+            False, "approval_refused",
+            "Approval refused — confirmation='APPROVE' is required. Stop. Ask the "
+            "user to explicitly approve before calling approve_experiment_draft again.",
+            {"approved": False, "error": "Approval requires approval_confirmation='APPROVE'."},
+            "ask_user_for_approval",
+        )
     draft = _api.load_experiment_draft(experiment_name, draft_id)
     if draft is None:
         return _envelope(
@@ -664,9 +820,21 @@ def approve_experiment_draft(
         "approved": approved.approved,
         "approved_at": approved.approved_at,
         "draft_hash": approved.draft_hash,
+        "render_requested": render_requested,
     }
-    display = f"Draft {approved.draft_id} approved at {approved.approved_at}."
-    return _envelope(True, "draft_approved", display, data, "render_draft_to_yaml")
+    if render_requested:
+        display = (
+            f"Draft {approved.draft_id} approved at {approved.approved_at}. "
+            "User requested approve+render in the same message — rendering may proceed."
+        )
+        next_action = "render_draft_to_yaml"
+    else:
+        display = (
+            f"Draft {approved.draft_id} approved at {approved.approved_at}. "
+            "Stop and ask the user before rendering YAML."
+        )
+        next_action = "ask_user_to_render_yaml"
+    return _envelope(True, "draft_approved", display, data, next_action)
 
 
 def render_draft_to_yaml(
@@ -713,10 +881,12 @@ def render_draft_to_yaml(
         "execution_has_occurred": False,
     }
     display = (
-        f"Rendered {config_path}. Execution has NOT occurred — call "
-        "execute_approved_config with confirmation='RUN' to run it."
+        f"Rendered {config_path}. Execution has NOT occurred. Stop. Execute only "
+        "after the user explicitly says RUN."
     )
-    return _envelope(True, "yaml_rendered", display, data, "execute_approved_config")
+    return _envelope(
+        True, "yaml_rendered", display, data, "ask_user_for_execution_authorisation"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -738,13 +908,20 @@ def execute_approved_config(
     trade, or register lineage automatically. It runs a single config and
     returns the result. With dry_run=true it only reports the planned command
     and records nothing.
+
+    Call this ONLY when the latest user instruction explicitly contains the
+    literal token RUN. Never infer RUN from a previous approval or render, from
+    "execute"/"yes"/"proceed"/"continue", or from a prior failed/refused attempt.
     """
     if confirmation != "RUN":
+        # Governance boundary: a refusal must NOT loop back into this tool. Stop
+        # and wait for a fresh user message that explicitly contains RUN.
         return _envelope(
             False, "execution_refused",
-            "Execution refused — confirmation='RUN' is required to run a config.",
+            "Execution refused — confirmation='RUN' is required. Stop. Ask the "
+            "user to explicitly type RUN before calling execute_approved_config again.",
             {"success": False, "error": "Execution requires confirmation='RUN'."},
-            "execute_approved_config",
+            "ask_user_for_execution_authorisation",
         )
 
     if dry_run:
@@ -855,6 +1032,20 @@ _TOOLS: list[tuple[Any, str, str]] = [
      "Read-only: load the fixed Zeto operator manual (compact rules) at the "
      "start of a session. Executes nothing, calls no LLM, reads no files, "
      "mutates no state. Returns only the fixed rules — no arbitrary paths."),
+    (get_research_memory_status, "get_research_memory_status",
+     "Read-only: report whether the research-memory index exists and how many "
+     "items / experiments it holds. Evidence layer only — runs nothing."),
+    (index_research_memory, "index_research_memory",
+     "Controlled write: build/refresh the research-memory index from known Zeto "
+     "artefact locations only (metadata, metrics, reviews, proposals, drafts, "
+     "reports, sessions). Runs no experiment, calls no LLM, approves/renders/"
+     "executes nothing, mutates no source artefacts, reads no arbitrary paths."),
+    (retrieve_research_memory, "retrieve_research_memory",
+     "Read-only: retrieve prior research evidence by deterministic keyword / "
+     "metadata match (query, experiment_name, failure_modes, artefact_type, "
+     "top_k). Returns compact items (summaries, paths, hashes, tags, matched "
+     "terms) — never full artefacts. Evidence only: authorises no execution, "
+     "approval, or rendering; quant metrics remain authoritative."),
     (list_experiments, "list_experiments",
      "List experiments that have persisted result artefacts. No side effects."),
     (create_research_session, "create_research_session",
@@ -898,15 +1089,27 @@ _TOOLS: list[tuple[Any, str, str]] = [
      "Validate a draft against the authoritative config schema. No side effects."
      + _SESSION_HINT),
     (approve_experiment_draft, "approve_experiment_draft",
-     "Explicitly approve a draft so it can be rendered. Only this tool approves; "
-     "no other tool auto-approves. Ask the human before calling." + _SESSION_HINT),
+     "Explicitly approve a draft so it can be rendered. Requires "
+     "approval_confirmation='APPROVE'. Only this tool approves; no other tool "
+     "auto-approves. Call it ONLY when the latest user message explicitly approves "
+     "the draft (e.g. 'I approve the draft.'). Never infer approval from 'start a "
+     "research cycle', from validation success, or from a next_suggested_action; "
+     "never approve automatically after validation. Pass render_requested=true "
+     "ONLY if the user explicitly asked to approve AND render in the same message; "
+     "otherwise the suggested next step is to stop and ask the user before "
+     "rendering." + _SESSION_HINT),
     (render_draft_to_yaml, "render_draft_to_yaml",
      "Render an already-approved experiment draft to YAML. This does not execute "
-     "the experiment. Execution requires a separate explicit tool call." + _SESSION_HINT),
+     "the experiment. After rendering, STOP and ask the user for RUN — rendering "
+     "never authorises execution." + _SESSION_HINT),
     (execute_approved_config, "execute_approved_config",
      "Run exactly one approved YAML config through the quant research engine. "
-     "Requires confirmation='RUN'. Does not optimise, loop, retry, trade, or "
-     "register lineage automatically." + _SESSION_HINT),
+     "Requires confirmation='RUN'. Call this ONLY when the latest user instruction "
+     "explicitly contains the literal token RUN. Never infer RUN from a previous "
+     "approval, a previous render, the word 'execute'/'yes'/'proceed'/'continue', "
+     "or a failed/refused execution attempt; after a refusal, stop and wait for a "
+     "new user message. Does not optimise, loop, retry, trade, or register lineage "
+     "automatically." + _SESSION_HINT),
     (review_post_run_result, "review_post_run_result",
      "Run an advisory LLM review of artefacts produced by a freshly executed "
      "config. Interprets existing artefacts only." + _LLM_HINT + _SESSION_HINT),

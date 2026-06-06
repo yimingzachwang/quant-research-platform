@@ -28,10 +28,13 @@ from src.orchestration.config_generation.draft_schema import (
 )
 from src.orchestration.llm.llm_interface import call_llm
 from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC, PROVIDER_STUB
+from src.orchestration.registry.experiment_registry import list_all
 from src.orchestration.utils.filesystem import (
     draft_json_path,
     experiment_config_path,
+    experiment_root,
     iteration_proposal_json_path,
+    report_markdown_path,
 )
 from src.orchestration.utils.serialization import dump_json, load_json
 
@@ -89,6 +92,7 @@ def generate_draft(
     base: Path | str | None = None,
     llm_base: Path | str | None = None,
     configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
     max_tokens: int = 1024,
     temperature: float = 0.1,
     base_url: str | None = None,
@@ -99,6 +103,10 @@ def generate_draft(
     Calls the LLM for a structured JSON change list.  Fills current_value from
     the base config.  Persists the draft to results/llm_reviews/{name}/.
 
+    The proposed name never collides with an existing config / result / registry
+    / report — if the LLM proposes an already-used name the next free ``_vN``
+    suffix is chosen, so a new draft cannot silently overwrite prior artefacts.
+
     Args:
         experiment_name: Source experiment — must have a v2 YAML config and a
                          persisted IterationProposal.
@@ -108,6 +116,7 @@ def generate_draft(
         base:            Override for the experiments results directory.
         llm_base:        Override for results/llm_reviews/.
         configs_base:    Override for configs/experiments/.
+        reports_base:    Override for the reports directory (proposed-name collision check).
         max_tokens:      Max tokens for LLM response.
         temperature:     Sampling temperature (low = more deterministic).
 
@@ -159,6 +168,14 @@ def generate_draft(
 
     # 4. Parse structured JSON response
     raw_changes, proposed_name = _parse_llm_response(resp_text, experiment_name)
+
+    # 4b. Never silently collide with existing artefacts.  If the proposed name
+    #     already has a config / result / registry / report, choose the next free
+    #     '_vN' suffix instead.  This stops the validate -> regenerate loop seen
+    #     when an LLM keeps proposing an already-registered name.
+    proposed_name = _next_available_proposed_name(
+        proposed_name, base=base, configs_base=configs_base, reports_base=reports_base
+    )
 
     # 5. Build DraftChange list — current_value from base config, not from LLM
     changes = _build_changes(base_config, raw_changes)
@@ -234,6 +251,68 @@ def load_draft(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+# Matches a trailing version suffix so it can be incremented (e.g. "..._v2").
+_VERSION_SUFFIX_RE = re.compile(r"^(?P<stem>.+)_v(?P<num>\d+)$")
+
+
+def _proposed_name_is_taken(
+    name: str,
+    base: Path | str | None = None,
+    configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
+) -> bool:
+    """True if any existing artefact already uses ``name``.
+
+    Checks the rendered config, the result/registry directory, the registry
+    listing, and the report markdown.  Used so draft generation never picks a
+    name that would later overwrite an existing config, result, or report.
+    """
+    if experiment_config_path(name, configs_base).exists():
+        return True
+    if experiment_root(name, base).exists():
+        return True
+    if name in set(list_all(base)):
+        return True
+    if report_markdown_path(name, reports_base).exists():
+        return True
+    return False
+
+
+def _next_available_proposed_name(
+    proposed_name: str,
+    base: Path | str | None = None,
+    configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
+) -> str:
+    """Return ``proposed_name``, or the next free ``_vN`` variant if it is taken.
+
+    Increments the trailing version suffix (``_v2`` -> ``_v3`` -> ``_v4`` ...)
+    until a name with no existing config / result / registry / report artefact
+    is found, so a new draft never silently overwrites prior artefacts and the
+    model never loops re-proposing the same already-registered name.  When the
+    name has no ``_vN`` suffix, one is appended (``foo`` -> ``foo_v2``).
+    """
+    if not _proposed_name_is_taken(proposed_name, base, configs_base, reports_base):
+        return proposed_name
+
+    match = _VERSION_SUFFIX_RE.match(proposed_name)
+    if match:
+        stem = match.group("stem")
+        num = int(match.group("num"))
+    else:
+        stem, num = proposed_name, 1
+
+    # Bounded scan — avoid an unbounded loop if every candidate is somehow taken.
+    for candidate_num in range(num + 1, num + 1001):
+        candidate = f"{stem}_v{candidate_num}"
+        if not _proposed_name_is_taken(candidate, base, configs_base, reports_base):
+            return candidate
+
+    raise ValueError(
+        f"Could not find an available proposed name near {proposed_name!r}. "
+        "Clean existing local demo artefacts or provide a new proposed name."
+    )
 
 
 def _load_proposal(

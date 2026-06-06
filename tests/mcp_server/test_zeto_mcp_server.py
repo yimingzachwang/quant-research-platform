@@ -35,6 +35,9 @@ _CONTRACT_KEYS = {"ok", "stage", "display", "data", "next_suggested_action"}
 
 _EXPECTED_TOOLS = {
     "get_zeto_operator_manual",
+    "get_research_memory_status",
+    "index_research_memory",
+    "retrieve_research_memory",
     "list_experiments",
     "create_research_session",
     "get_session_summary",
@@ -147,6 +150,39 @@ def _stub_execution(success: bool = True) -> ExecutionResult:
     )
 
 
+def _stub_memory_status() -> dict:
+    return {
+        "index_exists": True,
+        "item_count": 42,
+        "experiment_count": 8,
+        "index_path": "results/research_memory/memory_index.jsonl",
+    }
+
+
+def _stub_memory_index_result() -> dict:
+    return {
+        "indexed_count": 42,
+        "experiment_count": 8,
+        "index_path": "results/research_memory/memory_index.jsonl",
+    }
+
+
+def _stub_memory_items() -> list:
+    return [
+        {
+            "memory_id": "mem_abc123",
+            "experiment_name": "canonical_ml_showcase_v2",
+            "artefact_type": "llm_review",
+            "path": "results/llm_reviews/canonical_ml_showcase_v2/llm_review.json",
+            "context_hash": "h" * 64,
+            "failure_modes": ["poor_oos_consistency"],
+            "tags": ["validation", "oos_consistency"],
+            "matched_terms": ["poor_oos_consistency"],
+            "short_summary": "Post-run review found persistent validation instability.",
+        }
+    ]
+
+
 def _stub_state(**overrides) -> dict:
     state = {
         "experiment_name": "exp_a",
@@ -194,7 +230,7 @@ def test_no_all_in_one_or_loop_tool_exists():
     names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
     # Granular tools only — nothing that runs the whole flow silently.
     # (check_research_workflow_state is a read-only preflight, not a run loop.)
-    assert len(names) == 16
+    assert len(names) == 19
     for forbidden in ("auto", "loop", "full", "pipeline", "run_all", "orchestrate", "everything"):
         assert not any(forbidden in n.lower() for n in names), f"loop-like tool name: {forbidden}"
 
@@ -248,6 +284,134 @@ def test_operator_manual_is_read_only():
     assert out["data"]["manual_path"] == "docs/LM_STUDIO_QWEN_OPERATOR_MANUAL.md"
 
 
+def test_operator_manual_includes_memory_rules():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    assert "retrieve_research_memory" in blob
+    assert "evidence-only" in blob or "evidence only" in blob
+    assert "does not authorise execution" in blob
+    assert "quant metrics remain authoritative" in blob
+
+
+# ---------------------------------------------------------------------------
+# Research memory tools (Phase 1 RAG) — compact, read-only, evidence-only
+# ---------------------------------------------------------------------------
+
+
+def test_memory_tools_are_registered():
+    names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert {
+        "get_research_memory_status",
+        "index_research_memory",
+        "retrieve_research_memory",
+    } <= names
+
+
+def test_memory_status_envelope_when_index_exists():
+    with patch(f"{_MOD}.get_research_memory_status", return_value=_stub_memory_status()) as m:
+        out = zeto.get_research_memory_status()
+    m.assert_called_once()
+    assert _CONTRACT_KEYS.issubset(out)
+    assert out["ok"] is True
+    assert out["stage"] == "research_memory_status"
+    assert out["data"]["item_count"] == 42
+    assert out["data"]["experiment_count"] == 8
+    assert out["next_suggested_action"] == "retrieve_research_memory"
+    assert "42" in out["display"] and "8" in out["display"]
+
+
+def test_memory_status_missing_index_suggests_indexing():
+    missing = {
+        "index_exists": False, "item_count": 0, "experiment_count": 0,
+        "index_path": "results/research_memory/memory_index.jsonl",
+    }
+    with patch(f"{_MOD}.get_research_memory_status", return_value=missing):
+        out = zeto.get_research_memory_status()
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "index_research_memory"
+
+
+def test_memory_index_envelope_and_delegates():
+    with patch(f"{_MOD}.index_research_memory", return_value=_stub_memory_index_result()) as m:
+        out = zeto.index_research_memory()
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "research_memory_indexed"
+    assert out["data"]["indexed_count"] == 42
+    assert out["next_suggested_action"] == "retrieve_research_memory"
+
+
+def test_memory_retrieve_envelope_and_items():
+    with patch(f"{_MOD}.retrieve_research_memory", return_value=_stub_memory_items()) as m:
+        out = zeto.retrieve_research_memory(
+            query="poor oos consistency",
+            failure_modes=["poor_oos_consistency"],
+            top_k=5,
+        )
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "research_memory_retrieved"
+    assert out["data"]["item_count"] == 1
+    item = out["data"]["items"][0]
+    assert item["matched_terms"] == ["poor_oos_consistency"]
+    assert item["path"].endswith("llm_review.json")
+
+
+def test_memory_retrieve_payload_is_small():
+    # Even with a full top_k of verbose-looking items, the envelope stays compact.
+    big_items = [
+        {
+            "memory_id": f"mem_{i}",
+            "experiment_name": "canonical_ml_showcase_v2",
+            "artefact_type": "llm_review",
+            "path": f"results/llm_reviews/exp_{i}/llm_review.json",
+            "context_hash": "h" * 64,
+            "failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+            "tags": ["validation", "oos_consistency"],
+            "matched_terms": ["poor_oos_consistency"],
+            "short_summary": "Review found persistent validation instability." ,
+        }
+        for i in range(5)
+    ]
+    with patch(f"{_MOD}.retrieve_research_memory", return_value=big_items):
+        out = zeto.retrieve_research_memory(query="x", top_k=5)
+    assert len(json.dumps(out)) < 4000
+
+
+def test_memory_tools_expose_no_path_or_file_arguments():
+    # No arbitrary file access surface: status/index take nothing; retrieve only
+    # accepts query/experiment_name/failure_modes/artefact_type/top_k.
+    assert len(inspect.signature(zeto.get_research_memory_status).parameters) == 0
+    assert len(inspect.signature(zeto.index_research_memory).parameters) == 0
+    retrieve_params = set(inspect.signature(zeto.retrieve_research_memory).parameters)
+    assert retrieve_params == {
+        "query", "experiment_name", "failure_modes", "artefact_type", "top_k"
+    }
+    assert not (retrieve_params & {"path", "file", "config_path", "base"})
+
+
+def test_memory_tools_do_not_approve_render_or_execute():
+    # Evidence-only: memory tools must never touch approval/render/execution or
+    # LLM/draft generation paths.
+    with (
+        patch(f"{_MOD}.get_research_memory_status", return_value=_stub_memory_status()),
+        patch(f"{_MOD}.index_research_memory", return_value=_stub_memory_index_result()),
+        patch(f"{_MOD}.retrieve_research_memory", return_value=_stub_memory_items()),
+        patch(f"{_MOD}.approve_experiment_draft") as m_approve,
+        patch(f"{_MOD}.render_draft_to_yaml") as m_render,
+        patch(f"{_MOD}.execute_approved_config") as m_exec,
+        patch(f"{_MOD}.run_llm_review") as m_review,
+        patch(f"{_MOD}.generate_experiment_draft") as m_draft,
+    ):
+        zeto.get_research_memory_status()
+        zeto.index_research_memory()
+        zeto.retrieve_research_memory(query="oos")
+    m_approve.assert_not_called()
+    m_render.assert_not_called()
+    m_exec.assert_not_called()
+    m_review.assert_not_called()
+    m_draft.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Visible-state contract on EVERY tool
 # ---------------------------------------------------------------------------
@@ -275,8 +439,16 @@ def _call_every_tool() -> dict[str, dict]:
         p("get_research_workflow_state", return_value=_stub_state())
         p("list_research_sessions", return_value=["s1", "s2"])
         p("get_latest_research_session", return_value=_stub_session())
+        p("get_research_memory_status", return_value=_stub_memory_status())
+        p("index_research_memory", return_value=_stub_memory_index_result())
+        p("retrieve_research_memory", return_value=_stub_memory_items())
         return {
             "get_zeto_operator_manual": zeto.get_zeto_operator_manual(),
+            "get_research_memory_status": zeto.get_research_memory_status(),
+            "index_research_memory": zeto.index_research_memory(),
+            "retrieve_research_memory": zeto.retrieve_research_memory(
+                query="poor oos consistency", failure_modes=["poor_oos_consistency"]
+            ),
             "list_experiments": zeto.list_experiments(),
             "create_research_session": zeto.create_research_session("exp_a", "goal"),
             "get_session_summary": zeto.get_session_summary("s1"),
@@ -288,7 +460,9 @@ def _call_every_tool() -> dict[str, dict]:
             "generate_iteration_proposal": zeto.generate_iteration_proposal("exp_a"),
             "generate_experiment_draft": zeto.generate_experiment_draft("exp_a"),
             "validate_experiment_draft": zeto.validate_experiment_draft("exp_a", "d1"),
-            "approve_experiment_draft": zeto.approve_experiment_draft("exp_a", "d1"),
+            "approve_experiment_draft": zeto.approve_experiment_draft(
+                "exp_a", "d1", approval_confirmation="APPROVE"
+            ),
             "render_draft_to_yaml": zeto.render_draft_to_yaml("exp_a", "d1"),
             "execute_approved_config": zeto.execute_approved_config(
                 "configs/experiments/exp_a_v2.yaml", confirmation="RUN"
@@ -514,6 +688,319 @@ def test_validate_display_shows_fail_and_blocked():
     assert out["data"]["rendering_blocked"] is True
 
 
+def test_validate_failure_stops_does_not_loop_regenerate():
+    # A non-recoverable validation failure must tell the model to STOP and report
+    # — never suggest generate_experiment_draft (which caused the LM Studio loop).
+    bad = DraftValidationResult(is_valid=False, errors=["alpha out of range"])
+    with patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(False)), patch(
+        f"{_MOD}.validate_experiment_draft", return_value=bad
+    ):
+        out = zeto.validate_experiment_draft("exp_a", "d1")
+    assert out["ok"] is False
+    assert out["next_suggested_action"] != "generate_experiment_draft"
+    assert out["next_suggested_action"] == "stop_and_report_to_user"
+    assert out["data"]["recoverable"] is False
+    assert out["data"]["duplicate_proposed_name"] is False
+    # Display instructs the model to stop and not regenerate repeatedly.
+    blob = out["display"].lower()
+    assert "stop" in blob
+    assert "regenerate repeatedly" in blob
+
+
+def test_validate_duplicate_name_returns_intervention_not_autoloop():
+    # The specific failure from the LM Studio test: proposed name already exists.
+    # It must surface an intervention/stop action (ask the user), NOT an auto
+    # generate_experiment_draft loop.
+    dup = DraftValidationResult(
+        is_valid=False,
+        errors=["Experiment name 'canonical_ml_showcase_v2' already exists in the registry."],
+    )
+    with patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(False)), patch(
+        f"{_MOD}.validate_experiment_draft", return_value=dup
+    ):
+        out = zeto.validate_experiment_draft("exp_a", "d1")
+    assert out["ok"] is False
+    assert out["next_suggested_action"] != "generate_experiment_draft"
+    assert out["next_suggested_action"] == "ask_user_resolve_duplicate_name"
+    assert out["data"]["duplicate_proposed_name"] is True
+    assert out["data"]["recoverable"] is True
+    blob = out["display"].lower()
+    assert "already exists" in blob
+    assert "suffix" in blob or "clean" in blob
+    assert "regenerate repeatedly" in blob
+
+
+def test_validate_failure_next_actions_are_not_registered_tools():
+    # The stop/intervention next actions must NOT be callable tools — they are
+    # signals to stop and involve the user, never an auto-execution loop.
+    tool_names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    for action in ("stop_and_report_to_user", "ask_user_resolve_duplicate_name"):
+        assert action not in tool_names
+
+
+def test_operator_manual_includes_validation_stop_rule():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    assert "validation fails" in blob
+    assert "do not repeatedly call generate_experiment_draft" in blob
+    # Duplicate-name guidance is present too.
+    assert "already exists" in blob
+    assert "suffix" in blob
+
+
+def test_operator_manual_includes_run_gate_and_no_retry_rules():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    # "execute"/"yes"/"proceed"/"continue" are not RUN.
+    assert "'execute'" in blob and "'proceed'" in blob and "'continue'" in blob
+    assert "literal token run" in blob
+    # Do not retry after a refusal; wait for a new user message.
+    assert "after execution_refused" in blob
+    assert "do not retry execute_approved_config automatically" in blob
+    # Never infer RUN from prior approval / render / failed attempt.
+    assert "never infer run" in blob
+
+
+def test_operator_manual_includes_session_passing_rule():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    assert "do not pass session_id=null" in blob
+    assert "get_latest_research_session" in blob
+
+
+def test_operator_manual_includes_approval_gate_rules():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    assert "approval_confirmation='approve'" in blob
+    assert "validation success never authorises approval" in blob
+    assert "i approve the draft" in blob
+    assert "after approval_refused" in blob
+
+
+# ---------------------------------------------------------------------------
+# Governance stopping boundaries (Qwen must stop and ask the user)
+# ---------------------------------------------------------------------------
+
+_GOVERNANCE_SENTINELS = {
+    "ask_user_for_approval",
+    "ask_user_to_render_yaml",
+    "ask_user_for_execution_authorisation",
+    "stop_cycle_complete",
+}
+
+
+def test_validate_pass_stops_for_approval_not_auto_approve():
+    with patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(False)), patch(
+        f"{_MOD}.validate_experiment_draft", return_value=DraftValidationResult(True, [])
+    ):
+        out = zeto.validate_experiment_draft("exp_a", "d1")
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "ask_user_for_approval"
+    assert out["next_suggested_action"] != "approve_experiment_draft"
+    blob = out["display"].lower()
+    assert "approval still required" in blob
+    assert "stop and ask the user" in blob
+
+
+def test_approve_default_stops_for_render():
+    with patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(False)), patch(
+        f"{_MOD}.approve_experiment_draft", return_value=_stub_draft(True)
+    ):
+        out = zeto.approve_experiment_draft("exp_a", "d1", approval_confirmation="APPROVE")
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "ask_user_to_render_yaml"
+    assert out["next_suggested_action"] != "render_draft_to_yaml"
+    assert out["data"]["render_requested"] is False
+
+
+def test_approve_with_render_requested_suggests_render():
+    # Only when the user explicitly asked to approve AND render in one message.
+    with patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(False)), patch(
+        f"{_MOD}.approve_experiment_draft", return_value=_stub_draft(True)
+    ):
+        out = zeto.approve_experiment_draft(
+            "exp_a", "d1", approval_confirmation="APPROVE", render_requested=True
+        )
+    assert out["next_suggested_action"] == "render_draft_to_yaml"
+    assert out["data"]["render_requested"] is True
+
+
+# ---------------------------------------------------------------------------
+# Approval gate (tool-enforced, like the RUN execution gate)
+# ---------------------------------------------------------------------------
+
+
+def test_approve_without_confirmation_is_refused_and_does_not_persist():
+    # Missing approval_confirmation: refuse BEFORE loading or mutating anything.
+    with (
+        patch(f"{_MOD}.load_experiment_draft") as m_load,
+        patch(f"{_MOD}.approve_experiment_draft") as m_approve,
+        patch(f"{_MOD}.record_session_event") as m_event,
+    ):
+        out = zeto.approve_experiment_draft("exp_a", "d1")
+    assert out["ok"] is False
+    assert out["stage"] == "approval_refused"
+    assert out["data"]["approved"] is False
+    # No load, no approval mutation, no session-event persistence.
+    m_load.assert_not_called()
+    m_approve.assert_not_called()
+    m_event.assert_not_called()
+
+
+def test_approve_with_wrong_confirmation_token_is_refused():
+    for bad in ("approve", "APPROVED", "yes", "proceed", "continue", "APPROVE "):
+        with (
+            patch(f"{_MOD}.load_experiment_draft") as m_load,
+            patch(f"{_MOD}.approve_experiment_draft") as m_approve,
+        ):
+            out = zeto.approve_experiment_draft("exp_a", "d1", approval_confirmation=bad)
+        assert out["ok"] is False, bad
+        assert out["stage"] == "approval_refused", bad
+        m_load.assert_not_called()
+        m_approve.assert_not_called()
+
+
+def test_approval_refused_next_action_is_ask_user_not_render():
+    out = zeto.approve_experiment_draft("exp_a", "d1", approval_confirmation="nope")
+    assert out["next_suggested_action"] == "ask_user_for_approval"
+    assert out["next_suggested_action"] != "render_draft_to_yaml"
+    assert out["next_suggested_action"] != "approve_experiment_draft"
+    blob = out["display"].lower()
+    assert "approval refused" in blob
+    assert "approve" in blob
+    assert "stop" in blob
+
+
+def test_approve_with_APPROVE_succeeds():
+    with (
+        patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(approved=False)),
+        patch(f"{_MOD}.approve_experiment_draft", return_value=_stub_draft(approved=True)) as m,
+    ):
+        out = zeto.approve_experiment_draft("exp_a", "d1", approval_confirmation="APPROVE")
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "draft_approved"
+    assert out["data"]["approved"] is True
+
+
+def test_ask_user_for_approval_is_not_a_registered_tool():
+    tool_names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert "ask_user_for_approval" not in tool_names
+
+
+def test_render_still_refuses_unapproved_draft_after_gate():
+    # The approval gate does not weaken the render gate: an unapproved draft is
+    # still refused at render time.
+    with (
+        patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(approved=False)),
+        patch(f"{_MOD}.render_draft_to_yaml") as m_render,
+    ):
+        out = zeto.render_draft_to_yaml("exp_a", "d1")
+    assert out["ok"] is False
+    assert out["stage"] == "render_blocked"
+    m_render.assert_not_called()
+
+
+def test_approval_gate_adds_no_new_tool_or_loop():
+    names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert len(names) == 19
+    for forbidden in ("auto", "loop", "full", "pipeline", "run_all", "orchestrate", "everything"):
+        assert not any(forbidden in n.lower() for n in names)
+
+
+def test_render_stops_for_execution_authorisation_not_auto_execute():
+    with (
+        patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(True)),
+        patch(f"{_MOD}.render_draft_to_yaml", return_value="name: exp_a_v2\n# hash"),
+    ):
+        out = zeto.render_draft_to_yaml("exp_a", "d1")
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "ask_user_for_execution_authorisation"
+    assert out["next_suggested_action"] != "execute_approved_config"
+    assert "NOT occurred" in out["display"]
+    assert "RUN" in out["display"]
+
+
+def test_execute_success_suggests_post_run_review():
+    with patch(f"{_MOD}.execute_approved_config", return_value=_stub_execution(True)):
+        out = zeto.execute_approved_config(
+            "configs/experiments/exp_a_v2.yaml", confirmation="RUN"
+        )
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "review_post_run_result"
+
+
+def test_post_run_review_suggests_session_summary():
+    with (
+        patch(f"{_MOD}.run_llm_review", return_value=_stub_review()),
+        patch(f"{_MOD}.build_llm_context", return_value=_stub_ctx()),
+        patch(f"{_MOD}.compute_context_hash", return_value="h" * 64),
+    ):
+        out = zeto.review_post_run_result("exp_a_v2")
+    assert out["next_suggested_action"] == "get_session_summary"
+
+
+def test_post_run_review_failure_stops_no_autoretry():
+    # A failing/timed-out post-run review returns a clean ok=false envelope and
+    # stops — it never auto-retries the review tool.
+    with patch(f"{_MOD}.run_llm_review", side_effect=TimeoutError("LM Studio timed out")):
+        out = zeto.review_post_run_result("exp_a_v2")
+    assert _CONTRACT_KEYS.issubset(out)
+    assert out["ok"] is False
+    assert out["stage"] == "post_run_review_failed"
+    assert out["next_suggested_action"] == "stop_and_report_to_user"
+    assert out["next_suggested_action"] != "review_post_run_result"
+    assert "error" in out["data"]
+    blob = out["display"].lower()
+    assert "failed" in blob
+    assert "do not auto-retry" in blob
+
+
+def test_session_summary_ends_cycle_does_not_restart():
+    with (
+        patch(f"{_MOD}.load_research_session", return_value=_stub_session()),
+        patch(f"{_MOD}.summarize_research_session", return_value=_stub_summary()),
+    ):
+        out = zeto.get_session_summary("s1")
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "stop_cycle_complete"
+    # Never loops back into a new cycle.
+    assert out["next_suggested_action"] not in {
+        "run_experiment_review", "generate_iteration_proposal",
+        "generate_experiment_draft",
+    }
+    assert "complete" in out["display"].lower()
+
+
+def test_governance_sentinels_are_not_registered_tools():
+    tool_names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    for sentinel in _GOVERNANCE_SENTINELS:
+        assert sentinel not in tool_names
+
+
+def test_governance_changes_add_no_new_tool_or_loop():
+    # The fix is to next_suggested_action / displays only — no tool was added,
+    # and nothing loop-like was introduced.
+    names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert len(names) == 19
+    for forbidden in ("auto", "loop", "full", "pipeline", "run_all", "orchestrate"):
+        assert not any(forbidden in n.lower() for n in names)
+
+
+def test_execution_still_requires_run_confirmation():
+    with patch(f"{_MOD}.execute_approved_config") as m:
+        out = zeto.execute_approved_config("configs/experiments/x.yaml")
+    assert out["ok"] is False
+    assert out["stage"] == "execution_refused"
+    assert "RUN" in out["data"]["error"]
+    m.assert_not_called()
+
+
+def test_operator_manual_includes_governance_stopping_rules():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    assert "start a research cycle" in blob
+    assert "does not authorise" in blob
+    assert "stop after validate" in blob
+    assert "stop after render" in blob
+    assert "second iteration" in blob
+
+
 def test_render_display_states_execution_not_occurred():
     with (
         patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(True)),
@@ -703,7 +1190,7 @@ def test_approve_tool_delegates_once():
         patch(f"{_MOD}.load_experiment_draft", return_value=_stub_draft(approved=False)),
         patch(f"{_MOD}.approve_experiment_draft", return_value=_stub_draft(approved=True)) as m,
     ):
-        out = zeto.approve_experiment_draft("exp_a", "d1")
+        out = zeto.approve_experiment_draft("exp_a", "d1", approval_confirmation="APPROVE")
     m.assert_called_once()
     assert out["data"]["approved"] is True
 
@@ -728,6 +1215,60 @@ def test_execute_refuses_wrong_confirmation():
     assert out["ok"] is False
     assert out["data"]["success"] is False
     m.assert_not_called()
+
+
+def test_execute_refuses_confirmation_execute_token():
+    # The exact LM Studio failure: Qwen passed "execute" instead of "RUN".
+    with patch(f"{_MOD}.execute_approved_config") as m:
+        out = zeto.execute_approved_config(
+            "configs/experiments/x.yaml", confirmation="execute"
+        )
+    assert out["ok"] is False
+    assert out["stage"] == "execution_refused"
+    m.assert_not_called()
+
+
+def test_execution_refused_does_not_loop_back_to_execute():
+    # After a refusal the next action must NOT be execute_approved_config — it
+    # must be the non-tool sentinel so the model stops and waits for a fresh RUN.
+    for bad in ("", "execute", "yes", "proceed", "continue", "run", "RUN please"):
+        with patch(f"{_MOD}.execute_approved_config") as m:
+            out = zeto.execute_approved_config(
+                "configs/experiments/x.yaml", confirmation=bad
+            )
+        assert out["ok"] is False, bad
+        assert out["next_suggested_action"] == "ask_user_for_execution_authorisation", bad
+        assert out["next_suggested_action"] != "execute_approved_config", bad
+        m.assert_not_called()
+
+
+def test_execution_refused_display_tells_model_to_stop_and_wait_for_run():
+    out = zeto.execute_approved_config("configs/experiments/x.yaml", confirmation="execute")
+    blob = out["display"].lower()
+    assert "refused" in blob
+    assert "run" in blob
+    assert "stop" in blob
+    # Tells the model to wait for the user to type RUN, not to retry.
+    assert "type run" in blob or "explicitly type run" in blob
+
+
+def test_ask_user_for_execution_authorisation_is_not_a_registered_tool():
+    tool_names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert "ask_user_for_execution_authorisation" not in tool_names
+
+
+def test_execution_succeeds_only_with_run():
+    # Refused for a near-miss token; succeeds only for the literal "RUN".
+    with patch(f"{_MOD}.execute_approved_config") as m_refused:
+        refused = zeto.execute_approved_config("configs/experiments/x.yaml", confirmation="execute")
+    assert refused["ok"] is False
+    m_refused.assert_not_called()
+
+    with patch(f"{_MOD}.execute_approved_config", return_value=_stub_execution(True)) as m_run:
+        ran = zeto.execute_approved_config("configs/experiments/x.yaml", confirmation="RUN")
+    m_run.assert_called_once()
+    assert ran["ok"] is True
+    assert ran["data"]["success"] is True
 
 
 def test_execute_with_run_delegates_exactly_once():

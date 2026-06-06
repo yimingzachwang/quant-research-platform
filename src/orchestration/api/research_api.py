@@ -94,8 +94,19 @@ from src.orchestration.session.session_manager import (
 from src.orchestration.session.session_manager import (
     update_session_status as _update_session_status,
 )
+from src.orchestration.memory.memory_indexer import build_memory_records
+from src.orchestration.memory.memory_retriever import retrieve_memory
+from src.orchestration.memory.memory_store import (
+    index_exists as _memory_index_exists,
+)
+from src.orchestration.memory.memory_store import (
+    load_records as _load_memory_records,
+)
+from src.orchestration.memory.memory_store import (
+    write_records as _write_memory_records,
+)
 from src.orchestration.session.session_schema import ResearchSession
-from src.orchestration.utils.filesystem import list_session_ids
+from src.orchestration.utils.filesystem import list_session_ids, memory_index_path
 
 # ---------------------------------------------------------------------------
 # Experiment discovery
@@ -432,6 +443,7 @@ def generate_experiment_draft(
     base: Path | str | None = None,
     llm_base: Path | str | None = None,
     configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
     max_tokens: int = 1024,
     temperature: float = 0.1,
     base_url: str | None = None,
@@ -442,6 +454,10 @@ def generate_experiment_draft(
     (run generate_iteration_proposal() first).  Calls the LLM to extract
     structured parameter changes as JSON; fills current_value from the base
     config independently.  Persists the draft to results/llm_reviews/{name}/.
+
+    The proposed name is collision-checked against existing configs, results,
+    registry entries, and reports; an already-used name is bumped to the next
+    free ``_vN`` suffix so a new draft never silently overwrites prior artefacts.
 
     The draft is unapproved (approved=False).  Call approve_experiment_draft()
     before rendering to YAML.
@@ -454,6 +470,7 @@ def generate_experiment_draft(
         base=base,
         llm_base=llm_base,
         configs_base=configs_base,
+        reports_base=reports_base,
         max_tokens=max_tokens,
         temperature=temperature,
         base_url=base_url,
@@ -610,6 +627,84 @@ def get_latest_research_session(
     if not sessions:
         return None
     return max(sessions, key=lambda s: s.updated_at)
+
+
+# ---------------------------------------------------------------------------
+# Research memory (Phase 1 — metadata/keyword RAG)
+#
+# A lightweight, controlled evidence layer.  It indexes compact summaries of
+# existing artefacts into a local JSONL file and retrieves prior research
+# evidence by deterministic keyword / metadata matching.  It is evidence-only:
+# it runs no experiment, calls no LLM, approves nothing, renders nothing, and
+# never authorises execution.  Full artefacts stay on disk.
+# ---------------------------------------------------------------------------
+
+
+def get_research_memory_status(
+    memory_base: Path | str | None = None,
+) -> dict[str, Any]:
+    """Report whether the memory index exists and how much it holds (read-only)."""
+    records = _load_memory_records(memory_base)
+    experiment_count = len({r.experiment_name for r in records if r.experiment_name})
+    return {
+        "index_exists": _memory_index_exists(memory_base),
+        "item_count": len(records),
+        "experiment_count": experiment_count,
+        "index_path": str(memory_index_path(memory_base)),
+    }
+
+
+def index_research_memory(
+    base: Path | str | None = None,
+    llm_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
+    sessions_base: Path | str | None = None,
+    memory_base: Path | str | None = None,
+) -> dict[str, Any]:
+    """Build or refresh the research-memory index from known artefact locations.
+
+    Controlled write: reads only known Zeto artefact paths and overwrites the
+    local JSONL index with compact records.  Runs no experiment, calls no LLM,
+    approves/renders/executes nothing, and never mutates the source artefacts.
+    """
+    records = build_memory_records(
+        base=base,
+        llm_base=llm_base,
+        reports_base=reports_base,
+        sessions_base=sessions_base,
+    )
+    path = _write_memory_records(records, memory_base)
+    experiment_count = len({r.experiment_name for r in records if r.experiment_name})
+    return {
+        "indexed_count": len(records),
+        "experiment_count": experiment_count,
+        "index_path": str(path),
+    }
+
+
+def retrieve_research_memory(
+    query: str | None = None,
+    experiment_name: str | None = None,
+    failure_modes: list[str] | None = None,
+    artefact_type: str | None = None,
+    top_k: int = 5,
+    memory_base: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    """Retrieve prior research evidence by deterministic keyword/metadata match.
+
+    Read-only.  Returns up to ``top_k`` compact items (summaries, paths, hashes,
+    tags, matched terms) — never full artefact contents.  Evidence only: the
+    result authorises no execution, approval, or rendering.
+    """
+    records = _load_memory_records(memory_base)
+    return retrieve_memory(
+        records,
+        query=query,
+        experiment_name=experiment_name,
+        failure_modes=failure_modes,
+        artefact_type=artefact_type,
+        top_k=top_k,
+    )
 
 
 def build_research_evolution_chain(

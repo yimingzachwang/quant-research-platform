@@ -3,7 +3,7 @@
   "experiment_type": "v2_ml",
   "strategy_type": null,
   "report_spec": "CANONICAL_SHOWCASE",
-  "generated_at": "2026-05-27T17:41:18.698025+00:00",
+  "generated_at": "2026-06-05T16:51:35.019728+00:00",
   "report_version": "1",
   "artefact_version": "1",
   "tags": [
@@ -300,5 +300,6 @@
   "has_feature_registry": true,
   "has_feature_correlations": true,
   "has_alignment_diagnostics": true,
-  "has_feature_engineering": true
+  "has_feature_engineering": true,
+  "has_allocation_diagnostics": false
 }

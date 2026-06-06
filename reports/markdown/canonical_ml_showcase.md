@@ -430,7 +430,7 @@ Detailed diagnostics for walk-forward validation and ML signal quality.
 | --- | --- |
 | Experiment | `canonical_ml_showcase` |
 | Strategy | `MLStrategy(Ridge(alpha=0.5))` |
-| Created | 2026-05-27T17:41:10.306935+00:00 |
+| Created | 2026-06-05T16:51:26.327382+00:00 |
 
 ## Configuration
 
@@ -484,5 +484,5 @@ Detailed diagnostics for walk-forward validation and ML signal quality.
 ---
 
 Report version: 1
-Generated: 2026-05-27T17:41:18.698025+00:00
+Generated: 2026-06-05T16:51:35.019728+00:00
 Source experiment: canonical_ml_showcase

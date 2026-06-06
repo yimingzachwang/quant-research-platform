@@ -1,0 +1,305 @@
+{
+  "experiment_name": "canonical_ml_showcase_v7",
+  "experiment_type": "v2_ml",
+  "strategy_type": null,
+  "report_spec": "CANONICAL_SHOWCASE",
+  "generated_at": "2026-06-06T15:25:14.381572+00:00",
+  "report_version": "1",
+  "artefact_version": "1",
+  "tags": [
+    "ml",
+    "regression",
+    "ridge",
+    "single_asset",
+    "canonical",
+    "showcase"
+  ],
+  "files": {
+    "markdown": "canonical_ml_showcase_v7.md",
+    "provenance": "canonical_ml_showcase_v7_provenance.json",
+    "html": "../html/canonical_ml_showcase_v7.html"
+  },
+  "figures": [
+    "../figures/canonical_ml_showcase_v7/equity_and_drawdown.png",
+    "../figures/canonical_ml_showcase_v7/rolling_sharpe.png",
+    "../figures/canonical_ml_showcase_v7/rolling_volatility.png",
+    "../figures/canonical_ml_showcase_v7/allocation_history.png",
+    "../figures/canonical_ml_showcase_v7/portfolio_turnover.png",
+    "../figures/canonical_ml_showcase_v7/walk_forward_stitched.png",
+    "../figures/canonical_ml_showcase_v7/split_sharpes.png",
+    "../figures/canonical_ml_showcase_v7/split_equity_curves.png",
+    "../figures/canonical_ml_showcase_v7/train_vs_test_sharpe.png",
+    "../figures/canonical_ml_showcase_v7/ml_information_coefficient.png",
+    "../figures/canonical_ml_showcase_v7/ml_prediction_vs_actual.png",
+    "../figures/canonical_ml_showcase_v7/ml_prediction_distribution.png",
+    "../figures/canonical_ml_showcase_v7/ml_residuals.png",
+    "../figures/canonical_ml_showcase_v7/ml_coefficient_stability.png",
+    "../figures/canonical_ml_showcase_v7/ml_coefficient_evolution.png",
+    "../figures/canonical_ml_showcase_v7/ml_signal_turnover.png",
+    "../figures/canonical_ml_showcase_v7/feature_correlation_heatmap.png",
+    "../figures/canonical_ml_showcase_v7/ml_feature_regimes.png",
+    "../figures/canonical_ml_showcase_v7/ml_ic_regime.png",
+    "../figures/canonical_ml_showcase_v7/ml_rolling_da.png",
+    "../figures/canonical_ml_showcase_v7/ml_coefficient_sign_heatmap.png",
+    "../figures/canonical_ml_showcase_v7/walk_forward_timeline.png",
+    "../figures/canonical_ml_showcase_v7/feature_ic_heatmap.png",
+    "../figures/canonical_ml_showcase_v7/feature_family_ic.png",
+    "../figures/canonical_ml_showcase_v7/ic_by_vol_regime.png",
+    "../figures/canonical_ml_showcase_v7/feature_contribution_heatmap.png",
+    "../figures/canonical_ml_showcase_v7/family_contribution_timeline.png",
+    "../figures/canonical_ml_showcase_v7/universe_coverage_heatmap.png",
+    "../figures/canonical_ml_showcase_v7/cross_asset_volatility.png"
+  ],
+  "metrics_summary": {
+    "sharpe_ratio": 0.667069,
+    "annualized_return": 0.100994,
+    "annualized_volatility": 0.16464,
+    "max_drawdown": -0.341047,
+    "calmar_ratio": 0.296129,
+    "hit_rate": 0.487748
+  },
+  "sections_rendered": [
+    "Research Thesis & Methodology",
+    "Universe Construction & Coverage",
+    "Data Infrastructure",
+    "Feature Engineering",
+    "Backtesting Methodology",
+    "Portfolio Construction Process",
+    "ML Model Behaviour",
+    "Performance Metrics",
+    "Walk-Forward Validation",
+    "Failure Analysis",
+    "Diagnostics Appendix",
+    "Metadata",
+    "Configuration",
+    "Figures",
+    "Provenance"
+  ],
+  "validation_verdict": "marginal",
+  "plot_index": [
+    {
+      "name": "equity_and_drawdown",
+      "group": "performance",
+      "importance": "primary",
+      "caption": "Full-period equity curve (top) and drawdown (bottom). Cumulative net-of-cost growth anchored at 1.0; the drawdown panel shows peak-to-trough loss at each date."
+    },
+    {
+      "name": "rolling_sharpe",
+      "group": "performance",
+      "importance": "primary",
+      "caption": "252-trading-day rolling Sharpe ratio. Values consistently above zero confirm the strategy's risk-adjusted edge is not concentrated in a single sub-period."
+    },
+    {
+      "name": "rolling_volatility",
+      "group": "performance",
+      "importance": "secondary",
+      "caption": "63-day rolling annualised volatility. Persistent elevation indicates regime shifts; spikes mark acute stress events that may explain drawdown windows."
+    },
+    {
+      "name": "allocation_history",
+      "group": "portfolio",
+      "importance": "secondary",
+      "caption": "Stacked allocation history \u2014 fractional weight per asset at each rebalance date. Concentration corresponds to momentum leaders in the cross-sectional ranking."
+    },
+    {
+      "name": "portfolio_turnover",
+      "group": "portfolio",
+      "importance": "secondary",
+      "caption": "Daily portfolio turnover (bars) and 21-day rolling average (line). Turnover directly scales transaction-cost drag; spikes at regime transitions are expected."
+    },
+    {
+      "name": "walk_forward_stitched",
+      "group": "validation",
+      "importance": "primary",
+      "caption": "Stitched out-of-sample equity curve: each segment is one walk-forward test window concatenated in chronological order. Upward drift confirms structural alpha."
+    },
+    {
+      "name": "split_sharpes",
+      "group": "validation",
+      "importance": "primary",
+      "caption": "Per-split out-of-sample Sharpe ratios. Consistent positive values across splits indicate a regime-independent signal; negative outliers highlight stress periods."
+    },
+    {
+      "name": "split_equity_curves",
+      "group": "validation",
+      "importance": "secondary",
+      "caption": "Overlay of individual out-of-sample equity curves by split. Similar trajectories confirm cross-period stability; divergent curves indicate regime sensitivity."
+    },
+    {
+      "name": "train_vs_test_sharpe",
+      "group": "validation",
+      "importance": "secondary",
+      "caption": "In-sample vs out-of-sample Sharpe comparison per split. Large train/test gaps suggest in-sample overfitting; modest gaps are consistent with genuine generalisation."
+    },
+    {
+      "name": "ml_information_coefficient",
+      "group": "ml_signal",
+      "importance": "primary",
+      "caption": "Monthly rolling information coefficient (Pearson correlation of predicted vs actual returns). Persistent positive IC confirms the model adds directional information beyond chance."
+    },
+    {
+      "name": "ml_prediction_vs_actual",
+      "group": "ml_signal",
+      "importance": "secondary",
+      "caption": "Prediction vs actual overlay (top panel) and scatter (bottom panel). Appendix-level supplement to the rolling IC diagnostics. Concentration along the positive diagonal confirms directional alignment."
+    },
+    {
+      "name": "ml_prediction_distribution",
+      "group": "ml_signal",
+      "importance": "secondary",
+      "caption": "Distribution of raw model predictions. Near-symmetric distributions centred near zero indicate a well-calibrated model without directional drift or label leakage."
+    },
+    {
+      "name": "ml_residuals",
+      "group": "ml_signal",
+      "importance": "primary",
+      "caption": "Residual diagnostics: distribution of prediction errors (top) and rolling residual mean (bottom). A rolling mean persistently away from zero indicates systematic regime-specific bias."
+    },
+    {
+      "name": "ml_coefficient_stability",
+      "group": "ml_model",
+      "importance": "primary",
+      "caption": "Mean \u00b1 std of model coefficients across walk-forward splits. Bars with consistent sign and similar magnitude confirm a stable, replicable learned relationship."
+    },
+    {
+      "name": "ml_coefficient_evolution",
+      "group": "ml_model",
+      "importance": "secondary",
+      "caption": "Coefficient trajectory across walk-forward splits (chronological). Stable features maintain consistent sign and magnitude; unstable features cross zero, indicating regime-dependent learning."
+    },
+    {
+      "name": "ml_signal_turnover",
+      "group": "ml_signal",
+      "importance": "secondary",
+      "caption": "Per-period signal turnover (absolute position change). High turnover inflates transaction costs; the model's net alpha must comfortably exceed the implied cost drag."
+    },
+    {
+      "name": "feature_correlation_heatmap",
+      "group": "ml_features",
+      "importance": "secondary",
+      "caption": "Pairwise Pearson correlation matrix of the feature space. Low off-diagonal values indicate orthogonal information dimensions; high correlations flag potential multicollinearity."
+    },
+    {
+      "name": "ml_feature_regimes",
+      "group": "ml_features",
+      "importance": "secondary",
+      "caption": "Feature z-score heatmap (\u00b13\u03c3). Red marks periods of extreme positive feature values; blue marks extreme negative. Reveals feature regime transitions and co-movement across the backtest period."
+    },
+    {
+      "name": "ml_ic_regime",
+      "group": "ml_signal",
+      "importance": "primary",
+      "caption": "63-day rolling mean cross-sectional IC through time. Green fill marks sustained periods of positive IC; red marks signal breakdown. Width of each regime reveals persistence vs transience."
+    },
+    {
+      "name": "ml_rolling_da",
+      "group": "ml_signal",
+      "importance": "primary",
+      "caption": "126-day rolling IC consistency: fraction of days with positive cross-sectional IC. Values above 0.50 indicate the model ranks assets correctly more often than not; below 0.50 marks signal degradation."
+    },
+    {
+      "name": "ml_coefficient_sign_heatmap",
+      "group": "ml_model",
+      "importance": "primary",
+      "caption": "Coefficient values across walk-forward splits (x-axis) and features (y-axis). Blue = negative, red = positive; saturation encodes magnitude. Colour changes across splits reveal sign reversals and regime-specific learning."
+    },
+    {
+      "name": "walk_forward_timeline",
+      "group": "validation",
+      "importance": "primary",
+      "caption": "Gantt-style walk-forward window timeline. Each row is a split; grey = train window, coloured = test window (green positive OOS Sharpe, red negative). OOS Sharpe annotated on each test bar."
+    },
+    {
+      "name": "feature_ic_heatmap",
+      "group": "ml_features",
+      "importance": "primary",
+      "caption": "Per-feature IC against test-period labels by walk-forward split. Green = positive predictive IC; red = negative. Reveals which features drove signal quality in which regimes and where individual features broke down."
+    },
+    {
+      "name": "feature_family_ic",
+      "group": "ml_features",
+      "importance": "primary",
+      "caption": "Mean IC aggregated by feature family across walk-forward splits. Grouped bars reveal which hypothesis families (Trend, Volatility, Mean-Reversion, Market Structure) provided net positive signal in each regime and which degraded."
+    },
+    {
+      "name": "ic_by_vol_regime",
+      "group": "ml_features",
+      "importance": "primary",
+      "caption": "Feature family mean IC disaggregated by volatility regime. Each family shows two bars: high-volatility test splits (solid) vs low-volatility test splits (faded). Reveals which feature families provided signal preferentially under stressed vs calm market conditions. The vol regime classification uses the median cross-asset 21D realised vol across walk-forward test windows as the threshold."
+    },
+    {
+      "name": "feature_contribution_heatmap",
+      "group": "ml_model",
+      "importance": "primary",
+      "caption": "Feature contribution heatmap: realised predictive influence (coefficient \u00d7 standardised feature value) for each feature through time, grouped by family. Red = positive contribution (model predicts above-average return for this feature state); blue = negative. Regime shifts appear as horizontal band colour transitions; simultaneous sign changes across a family reveal coordinated hypothesis activation or suppression."
+    },
+    {
+      "name": "family_contribution_timeline",
+      "group": "ml_model",
+      "importance": "primary",
+      "caption": "Feature family contribution timeline. Top panel: signed rolling family contributions \u2014 shows which hypothesis family drove predictions and in which direction. Bottom panel: normalised absolute contribution share \u2014 shows which family dominated regardless of sign. Regime shifts appear as share transitions between families; sustained dominance by one family indicates the model operated in a stable predictive regime."
+    },
+    {
+      "name": "universe_coverage_heatmap",
+      "group": "universe",
+      "importance": "primary",
+      "caption": "Monthly price coverage fraction by asset. Green = full availability; red = data gaps. Identifies structurally incomplete assets that reduce effective universe breadth."
+    },
+    {
+      "name": "cross_asset_volatility",
+      "group": "universe",
+      "importance": "primary",
+      "caption": "63-day rolling annualised volatility per asset. Persistent divergence between risk-on and risk-off assets confirms macro regime heterogeneity. Synchronised spikes identify systemic stress."
+    }
+  ],
+  "figure_hierarchy": {
+    "primary": [
+      "equity_and_drawdown",
+      "rolling_sharpe",
+      "walk_forward_stitched",
+      "split_sharpes",
+      "ml_information_coefficient",
+      "ml_residuals",
+      "ml_coefficient_stability",
+      "ml_ic_regime",
+      "ml_rolling_da",
+      "ml_coefficient_sign_heatmap",
+      "walk_forward_timeline",
+      "feature_ic_heatmap",
+      "feature_family_ic",
+      "ic_by_vol_regime",
+      "feature_contribution_heatmap",
+      "family_contribution_timeline",
+      "universe_coverage_heatmap",
+      "cross_asset_volatility"
+    ],
+    "secondary": [
+      "rolling_volatility",
+      "allocation_history",
+      "portfolio_turnover",
+      "split_equity_curves",
+      "train_vs_test_sharpe",
+      "ml_prediction_vs_actual",
+      "ml_prediction_distribution",
+      "ml_coefficient_evolution",
+      "ml_signal_turnover",
+      "feature_correlation_heatmap",
+      "ml_feature_regimes"
+    ]
+  },
+  "has_ml": true,
+  "has_validation": true,
+  "has_diagnostics": true,
+  "has_research_artefacts": true,
+  "has_ml_model_diagnostics": true,
+  "has_wf_equity_curves": true,
+  "has_rolling_sharpe": true,
+  "has_train_vs_test": true,
+  "has_ml_plots": true,
+  "has_feature_summary": true,
+  "has_feature_registry": true,
+  "has_feature_correlations": true,
+  "has_alignment_diagnostics": true,
+  "has_feature_engineering": true,
+  "has_allocation_diagnostics": false
+}

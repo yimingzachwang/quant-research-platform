@@ -591,8 +591,10 @@ class TestGenerateDraft:
             from src.orchestration.config_generation.draft_generator import generate_draft
             draft = generate_draft(
                 "canonical_ml_showcase",
+                base=tmp_path / "results" / "experiments",
                 llm_base=llm_dir,
                 configs_base=cfg_dir,
+                reports_base=tmp_path / "reports",
             )
 
         assert isinstance(draft, ExperimentDraft)
@@ -631,8 +633,10 @@ class TestGenerateDraft:
         draft = generate_draft(
             "canonical_ml_showcase",
             provider="stub",
+            base=tmp_path / "results" / "experiments",
             llm_base=llm_dir,
             configs_base=cfg_dir,
+            reports_base=tmp_path / "reports",
         )
 
         assert isinstance(draft, ExperimentDraft)
@@ -717,8 +721,10 @@ class TestGenerateDraft:
             from src.orchestration.config_generation.draft_generator import generate_draft
             draft = generate_draft(
                 "canonical_ml_showcase",
+                base=tmp_path / "results" / "experiments",
                 llm_base=llm_dir,
                 configs_base=cfg_dir,
+                reports_base=tmp_path / "reports",
             )
         assert draft.proposed_name == "canonical_ml_showcase_v2"
 
@@ -747,6 +753,145 @@ class TestGenerateDraft:
                 llm_base=llm_dir,
                 configs_base=cfg_dir,
             )
+
+    def test_does_not_repropose_already_existing_name(self, tmp_path):
+        # Regression for the LM Studio loop: the stub would propose
+        # 'canonical_ml_showcase_v2', but that config already exists.  Generation
+        # must pick the next free suffix (v3) rather than re-proposing v2 — so a
+        # validate -> regenerate loop can never reproduce the same colliding name.
+        cfg_dir = _make_config_file(tmp_path)
+        (cfg_dir / "canonical_ml_showcase_v2.yaml").write_text(
+            yaml.dump(_BASE_CONFIG), encoding="utf-8"
+        )
+        llm_dir = self._make_proposal_file(tmp_path)
+
+        from src.orchestration.config_generation.draft_generator import generate_draft
+        draft = generate_draft(
+            "canonical_ml_showcase",
+            provider="stub",
+            base=tmp_path / "results" / "experiments",
+            llm_base=llm_dir,
+            configs_base=cfg_dir,
+            reports_base=tmp_path / "reports",
+        )
+        assert draft.proposed_name == "canonical_ml_showcase_v3"
+
+    def test_does_not_overwrite_existing_config_result_or_report(self, tmp_path):
+        # v2 has a config, a result dir, AND a report — all three must be left
+        # intact, and the new draft must use a name with no existing artefact.
+        cfg_dir = _make_config_file(tmp_path)
+        v2_cfg = cfg_dir / "canonical_ml_showcase_v2.yaml"
+        v2_cfg.write_text(yaml.dump(_BASE_CONFIG), encoding="utf-8")
+        v2_cfg_before = v2_cfg.read_text(encoding="utf-8")
+
+        results_base = tmp_path / "results" / "experiments"
+        (results_base / "canonical_ml_showcase_v2").mkdir(parents=True)
+        (results_base / "canonical_ml_showcase_v2" / "metadata.json").write_text(
+            "{}", encoding="utf-8"
+        )
+        reports_base = tmp_path / "reports"
+        (reports_base / "markdown").mkdir(parents=True)
+        (reports_base / "markdown" / "canonical_ml_showcase_v2.md").write_text(
+            "# existing report", encoding="utf-8"
+        )
+
+        llm_dir = self._make_proposal_file(tmp_path)
+        from src.orchestration.config_generation.draft_generator import generate_draft
+        draft = generate_draft(
+            "canonical_ml_showcase",
+            provider="stub",
+            base=results_base,
+            llm_base=llm_dir,
+            configs_base=cfg_dir,
+            reports_base=reports_base,
+        )
+
+        # New name avoids every existing artefact path.
+        assert draft.proposed_name == "canonical_ml_showcase_v3"
+        assert not (cfg_dir / "canonical_ml_showcase_v3.yaml").exists()
+        assert not (results_base / "canonical_ml_showcase_v3").exists()
+        assert not (reports_base / "markdown" / "canonical_ml_showcase_v3.md").exists()
+        # Existing v2 artefacts are untouched.
+        assert v2_cfg.read_text(encoding="utf-8") == v2_cfg_before
+        assert (results_base / "canonical_ml_showcase_v2" / "metadata.json").exists()
+        assert (reports_base / "markdown" / "canonical_ml_showcase_v2.md").read_text(
+            encoding="utf-8"
+        ) == "# existing report"
+
+
+# ---------------------------------------------------------------------------
+# Next-available proposed name (duplicate-name recovery)
+# ---------------------------------------------------------------------------
+
+
+class TestNextAvailableProposedName:
+    """Unit tests for the proposed-name collision avoidance helpers.
+
+    These guarantee draft generation never re-proposes an already-used name and
+    never picks a name that would overwrite an existing config/result/report.
+    """
+
+    def _dirs(self, tmp_path: Path) -> tuple[Path, Path, Path]:
+        return (
+            tmp_path / "results" / "experiments",
+            tmp_path / "configs" / "experiments",
+            tmp_path / "reports",
+        )
+
+    def _call(self, name, tmp_path):
+        from src.orchestration.config_generation.draft_generator import (
+            _next_available_proposed_name,
+        )
+        base, configs_base, reports_base = self._dirs(tmp_path)
+        return _next_available_proposed_name(
+            name, base=base, configs_base=configs_base, reports_base=reports_base
+        )
+
+    def test_returns_name_when_free(self, tmp_path):
+        assert self._call("exp_v2", tmp_path) == "exp_v2"
+
+    def test_bumps_on_existing_config(self, tmp_path):
+        _, configs_base, _ = self._dirs(tmp_path)
+        configs_base.mkdir(parents=True)
+        (configs_base / "exp_v2.yaml").write_text("name: exp_v2", encoding="utf-8")
+        assert self._call("exp_v2", tmp_path) == "exp_v3"
+
+    def test_bumps_on_existing_result_and_registry(self, tmp_path):
+        base, _, _ = self._dirs(tmp_path)
+        (base / "exp_v2").mkdir(parents=True)
+        (base / "exp_v2" / "metadata.json").write_text("{}", encoding="utf-8")
+        assert self._call("exp_v2", tmp_path) == "exp_v3"
+
+    def test_bumps_on_existing_report(self, tmp_path):
+        _, _, reports_base = self._dirs(tmp_path)
+        (reports_base / "markdown").mkdir(parents=True)
+        (reports_base / "markdown" / "exp_v2.md").write_text("# r", encoding="utf-8")
+        assert self._call("exp_v2", tmp_path) == "exp_v3"
+
+    def test_skips_multiple_consecutive_taken(self, tmp_path):
+        _, configs_base, _ = self._dirs(tmp_path)
+        configs_base.mkdir(parents=True)
+        for n in ("exp_v2", "exp_v3", "exp_v4"):
+            (configs_base / f"{n}.yaml").write_text("x", encoding="utf-8")
+        assert self._call("exp_v2", tmp_path) == "exp_v5"
+
+    def test_appends_v2_when_name_has_no_suffix(self, tmp_path):
+        _, configs_base, _ = self._dirs(tmp_path)
+        configs_base.mkdir(parents=True)
+        (configs_base / "exp.yaml").write_text("x", encoding="utf-8")
+        assert self._call("exp", tmp_path) == "exp_v2"
+
+    def test_chosen_name_is_not_taken(self, tmp_path):
+        from src.orchestration.config_generation.draft_generator import (
+            _proposed_name_is_taken,
+        )
+        base, configs_base, reports_base = self._dirs(tmp_path)
+        configs_base.mkdir(parents=True)
+        (configs_base / "exp_v2.yaml").write_text("x", encoding="utf-8")
+        chosen = self._call("exp_v2", tmp_path)
+        assert not _proposed_name_is_taken(
+            chosen, base=base, configs_base=configs_base, reports_base=reports_base
+        )
 
 
 # ---------------------------------------------------------------------------

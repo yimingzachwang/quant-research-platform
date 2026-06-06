@@ -222,6 +222,9 @@ When calling the LLM-backed tools (`run_experiment_review`,
 | Tool | Purpose | LLM? | Mutates? |
 |---|---|---|---|
 | `get_zeto_operator_manual` | Load the fixed operator rules (read-only) | no | no |
+| `get_research_memory_status` | Whether the memory index exists + item/experiment counts | no | no |
+| `index_research_memory` | Build/refresh the memory index from known artefacts only | no | memory index |
+| `retrieve_research_memory` | Retrieve prior evidence by keyword/metadata (compact) | no | no |
 | `list_experiments` | List experiments with artefacts | no | no |
 | `create_research_session` | Start a session | no | session |
 | `get_session_summary` | Current session state (needs session_id UUID) | no | no |
@@ -233,7 +236,7 @@ When calling the LLM-backed tools (`run_experiment_review`,
 | `generate_iteration_proposal` | Advisory next-step proposal | yes | session event |
 | `generate_experiment_draft` | Schema-bounded config draft (deltas, not YAML) | yes | draft + event |
 | `validate_experiment_draft` | Validate draft against schema | no | session event |
-| `approve_experiment_draft` | **Explicit** approval (only here) | no | draft + event |
+| `approve_experiment_draft` | **Explicit** approval (only here); needs `approval_confirmation="APPROVE"` | no | draft + event |
 | `render_draft_to_yaml` | Render approved draft to YAML (no execution) | no | config + event |
 | `execute_approved_config` | Run ONE approved config; needs `confirmation="RUN"` | no | run + events |
 | `review_post_run_result` | LLM review of freshly generated artefacts | yes | session event |
@@ -246,6 +249,99 @@ Governance built into the tools:
   one config, and never loops, retries, trades, or registers lineage;
 - LLM-backed tools interpret persisted artefacts — they never compute metrics or
   run experiments.
+
+## Research Memory / Phase 1 RAG
+
+A lightweight, controlled **evidence layer** so a chat can recall prior Zeto
+research before reviewing, proposing, drafting, or interpreting a post-run
+result.
+
+```text
+research artefacts → compact memory records → local JSONL index
+                   → retrieval tool → compact evidence snippets to LM Studio
+```
+
+Phase 1 scope (deliberately minimal): metadata / keyword retrieval only — **no**
+embeddings, **no** vector database, **no** LangChain/LangGraph/agent framework,
+**no** semantic retrieval. Full artefacts stay on disk; memory holds only
+compact, provenance-aware pointers.
+
+Index file: `results/research_memory/memory_index.jsonl` (one record per line).
+
+Indexed sources (and the assigned `artefact_type`):
+
+| Source | artefact_type |
+|---|---|
+| `results/experiments/*/metadata.json` | `experiment_metadata` |
+| `results/experiments/*/metrics.json` | `experiment_metrics` |
+| `results/llm_reviews/*/llm_review.json` | `llm_review` |
+| `results/llm_reviews/*/iteration_proposal.json` | `iteration_proposal` |
+| `results/llm_reviews/*/draft_*.json` | `draft` |
+| `reports/markdown/*.md` | `report` |
+| `results/research_sessions/*/session.json` | `session` |
+
+**Not indexed:** raw data, parquet files, plot binaries, secrets/`.env`,
+arbitrary repo files, and full report bodies (only a short summary line is kept).
+
+Each record is compact:
+
+```json
+{
+  "memory_id": "mem_…",
+  "experiment_name": "canonical_ml_showcase_v2",
+  "session_id": null,
+  "artefact_type": "llm_review",
+  "context_hash": "…",
+  "path": "results/llm_reviews/canonical_ml_showcase_v2/llm_review.json",
+  "created_at": "…",
+  "failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+  "tags": ["validation", "oos_consistency", "regularisation"],
+  "short_summary": "LLM review flagged: poor_oos_consistency, catastrophic_split."
+}
+```
+
+Tools:
+
+- **`get_research_memory_status`** — read-only. Reports whether the index exists
+  and how many items / experiments it holds.
+- **`index_research_memory`** — controlled write. Builds/refreshes the index from
+  the known locations above. It runs no experiment, calls no LLM, approves no
+  draft, renders no YAML, never calls RUN, inspects no arbitrary path, and never
+  mutates source artefacts.
+- **`retrieve_research_memory`** — read-only. Retrieve by `query`,
+  `experiment_name`, `failure_modes`, `artefact_type`, and `top_k`. Returns up to
+  `top_k` compact items (summaries, paths, hashes, tags, **matched terms**) —
+  never full artefact contents.
+
+Retrieval is simple and deterministic: case-insensitive keyword matching,
+failure-mode matching, artefact-type matching, experiment-name matching, and a
+small additive score over the matched fields. `experiment_name` matches by
+containment, so a base name (`canonical_ml_showcase`) also surfaces its versioned
+descendants (`canonical_ml_showcase_v2`).
+
+Governance: retrieval is **evidence-only** — retrieved memory does **not**
+authorise execution or approval, and is never proof of performance. The quant
+metrics remain authoritative.
+
+Example retrieve input:
+
+```json
+{
+  "query": "poor OOS consistency and catastrophic split",
+  "experiment_name": "canonical_ml_showcase",
+  "failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+  "top_k": 5
+}
+```
+
+Example LM Studio prompts:
+
+```text
+Index the current Zeto research memory.
+Have we seen this failure mode before?
+Retrieve prior memory related to poor_oos_consistency and catastrophic_split.
+Use retrieved memory to inform the next proposal, but do not execute anything.
+```
 
 ## Preflight: `check_research_workflow_state`
 
@@ -281,9 +377,9 @@ intermediate state clearly:
 {
   "ok": true,
   "stage": "draft_validated",
-  "display": "Validation PASS — rendering is NOT blocked. Approval still required.",
+  "display": "Validation PASS — approval still required. Stop and ask the user before approving or rendering.",
   "data": { "experiment_name": "canonical_ml_showcase", "draft_id": "…", "is_valid": true, "rendering_blocked": false, "error_count": 0, "errors": [] },
-  "next_suggested_action": "approve_experiment_draft"
+  "next_suggested_action": "ask_user_for_approval"
 }
 ```
 
@@ -291,15 +387,49 @@ intermediate state clearly:
 - `stage` — machine-readable lifecycle stage (e.g. `context_built`, `yaml_rendered`);
 - `display` — a concise human-readable line to surface in the chat;
 - `data` — the structured payload;
-- `next_suggested_action` — the single recommended next tool. This is **advisory
+- `next_suggested_action` — the single recommended next step. This is **advisory
   only** — there is no auto-chaining and no all-in-one loop tool; the researcher
   (or model, with your confirmation) chooses each step.
 
+### Governance stops (non-tool sentinels)
+
+At each governance boundary, `next_suggested_action` is a **non-tool sentinel**,
+not the next mutating tool — the model must stop and get the user before
+proceeding:
+
+| After | `next_suggested_action` | Meaning |
+|---|---|---|
+| `validate_experiment_draft` (PASS) | `ask_user_for_approval` | validation never authorises approval |
+| `approve_experiment_draft` **refused** (`approval_confirmation` ≠ `APPROVE`) | `ask_user_for_approval` | stop — do **not** retry; wait for the user to explicitly approve |
+| `approve_experiment_draft` (`APPROVE`) | `ask_user_to_render_yaml` (default) / `render_draft_to_yaml` (only if the user asked to approve **and** render in one message via `render_requested=true`) | approval does not auto-render |
+| `render_draft_to_yaml` | `ask_user_for_execution_authorisation` | rendering never authorises execution |
+| `execute_approved_config` **refused** (confirmation ≠ `RUN`) | `ask_user_for_execution_authorisation` | stop — do **not** retry; wait for a fresh user message containing `RUN` |
+| `execute_approved_config` (RUN) | `review_post_run_result` | post-run review may proceed |
+| `review_post_run_result` | `get_session_summary` | summarise the cycle |
+| `get_session_summary` | `stop_cycle_complete` | cycle done — do **not** start a new proposal/draft/experiment |
+
+A high-level request such as "start a research cycle" does **not** carry through
+these stops: it authorises only the read/advisory steps up to validation.
+
+Approval is tool-enforced the same way: `approve_experiment_draft` requires
+`approval_confirmation="APPROVE"` and only a fresh user message that explicitly
+approves the draft (e.g. "I approve the draft.") authorises it. Validation
+success, "start a research cycle", and `next_suggested_action` do **not** count.
+When approval is refused (`approval_refused`), the model must stop and wait for
+the user; it must not retry `approve_experiment_draft` or jump to rendering.
+
+Execution still requires `confirmation="RUN"`. Only a fresh user message
+containing the literal token `RUN` authorises execution — `execute`, `yes`,
+`proceed`, `continue`, a prior approval/render, or a previously refused attempt
+do **not** count. When execution is refused, the model must stop and wait for a
+new RUN message; it must not immediately retry `execute_approved_config`.
+
 Notable displays: `build_context_summary` shows failure modes and key validation
 metrics; `generate_experiment_draft` shows the proposed config diff;
-`validate_experiment_draft` shows PASS/FAIL and whether rendering is blocked;
-`render_draft_to_yaml` states that execution has not occurred;
-`review_post_run_result` shows the post-run context hash, flags, and sections.
+`validate_experiment_draft` shows PASS/FAIL and (on PASS) that approval is still
+required; `render_draft_to_yaml` states execution has NOT occurred and to stop
+for RUN; `review_post_run_result` shows the post-run context hash, flags, and
+sections.
 
 ## Example User Workflow (interpret an existing result)
 
