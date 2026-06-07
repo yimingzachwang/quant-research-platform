@@ -53,6 +53,26 @@ _VALID_CHANGE_PATHS: frozenset[tuple[str, str]] = frozenset({
 })
 
 
+def split_field_path(field_path: str) -> tuple[str, str]:
+    """Split a dotted field path into (section, field).
+
+    ``"model.params.alpha"`` -> ``("model", "params.alpha")``.  The section is the
+    first dotted component; the field is everything after it (possibly empty).
+    """
+    section, _, field = (field_path or "").partition(".")
+    return section, field
+
+
+def change_path_allowed(section: str, field: str) -> bool:
+    """True if (section, field) is in the authoritative change-path whitelist."""
+    return (section, field) in _VALID_CHANGE_PATHS
+
+
+def allowed_change_paths() -> list[str]:
+    """Return the allowed change paths as dotted strings (sorted), for messages."""
+    return sorted(f"{s}.{f}" for s, f in _VALID_CHANGE_PATHS)
+
+
 def validate_draft(
     draft: ExperimentDraft,
     base: Path | str | None = None,

@@ -295,6 +295,14 @@ def comparative_review_md_path(
     return comparison_dir(baseline, candidate, base) / "comparative_review.md"
 
 
+def comparison_evidence_json_path(
+    baseline: str,
+    candidate: str,
+    base: Path | str | None = None,
+) -> Path:
+    return comparison_dir(baseline, candidate, base) / "comparison_evidence.json"
+
+
 # ---------------------------------------------------------------------------
 # Lineage metadata paths (within experiment directory)
 # ---------------------------------------------------------------------------
@@ -371,6 +379,16 @@ def research_memory_root(base: Path | str | None = None) -> Path:
 def memory_index_path(base: Path | str | None = None) -> Path:
     """Path to the local JSONL research-memory index."""
     return research_memory_root(base) / "memory_index.jsonl"
+
+
+def semantic_memory_index_path(base: Path | str | None = None) -> Path:
+    """Path to the local JSONL semantic (embedding) research-memory index."""
+    return research_memory_root(base) / "semantic_memory_index.jsonl"
+
+
+def semantic_memory_manifest_path(base: Path | str | None = None) -> Path:
+    """Path to the semantic-memory manifest (model, dim, counts, timestamp)."""
+    return research_memory_root(base) / "semantic_memory_manifest.json"
 
 
 # ---------------------------------------------------------------------------

@@ -76,6 +76,11 @@ def _short(text: str, limit: int = 200) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+def _mfmt(value: Any) -> str:
+    """Render a metric value for display; 'n/a' when missing. Never invents."""
+    return "n/a" if value is None else str(value)
+
+
 def _name_sev(failure_modes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Compact failure-mode/flag form: only name + severity (no descriptions)."""
     return [
@@ -94,6 +99,58 @@ def _compact_diff(changes: list[Any]) -> list[dict[str, Any]]:
         }
         for c in changes
     ]
+
+
+def _compact_multi_diff(changes: list[Any]) -> list[dict[str, Any]]:
+    """Compact diff that handles feature add/remove alongside set changes."""
+    result = []
+    for c in changes:
+        if c.section == "features":
+            if c.field == "entries.add":
+                feat = c.proposed_value
+                result.append({
+                    "field_path": "features.entries",
+                    "operation": "add",
+                    "value": (
+                        {"name": feat.get("name"), "type": feat.get("type")}
+                        if isinstance(feat, dict) else feat
+                    ),
+                })
+            elif c.field == "entries.remove":
+                result.append({
+                    "field_path": "features.entries",
+                    "operation": "remove",
+                    "value": c.proposed_value,
+                })
+        else:
+            result.append({
+                "field_path": f"{c.section}.{c.field}",
+                "operation": "set",
+                "current_value": c.current_value,
+                "proposed_value": c.proposed_value,
+            })
+    return result
+
+
+def _diff_summary_lines(diff: list[dict[str, Any]]) -> list[str]:
+    """One concise human-readable line per diff entry."""
+    lines = []
+    for d in diff:
+        op = d.get("operation", "set")
+        fp = d.get("field_path", d.get("field", "?"))
+        if op == "set":
+            lines.append(f"{fp}: {d.get('current_value')} -> {d.get('proposed_value')}")
+        elif op == "add":
+            v = d.get("value") or {}
+            lines.append(
+                f"features.entries ADD {v.get('name')!r} (type={v.get('type')!r})"
+                if isinstance(v, dict) else f"features.entries ADD {v!r}"
+            )
+        elif op == "remove":
+            lines.append(f"features.entries REMOVE {d.get('value')!r}")
+        else:
+            lines.append(f"{fp} [{op}]")
+    return lines
 
 
 def _envelope(
@@ -224,7 +281,15 @@ _OPERATOR_RULES: tuple[str, ...] = (
     "If session_id is lost, call get_latest_research_session before continuing.",
     "Never use experiment_name, context_hash, draft_id, or config_path as session_id.",
     "Never invent metrics; use tool outputs only.",
-    "Never invent or hand-write draft configs; drafts come from generate_experiment_draft only.",
+    "Never invent or hand-write draft configs; drafts come from generate_experiment_draft "
+    "or generate_parameter_change_draft only.",
+    "For a specific user-requested config change (e.g. 'set alpha to 2'), use "
+    "generate_parameter_change_draft, not generate_experiment_draft.",
+    "For Sharpe/OOS Sharpe/drawdown/hit-rate or 'did it improve' questions, use "
+    "get_experiment_metrics or compare_experiment_metrics, never retrieve_research_memory "
+    "or semantic_retrieve_research_memory.",
+    "Never invent report contents or sample metrics; performance is authoritative only "
+    "from experiment artefacts.",
     "If a tool returns ok=false, report the failure verbatim and stop.",
     "If validation fails, report the failure and stop; do not repeatedly call generate_experiment_draft.",
     "If validation fails because the proposed experiment name already exists, "
@@ -245,19 +310,32 @@ _OPERATOR_RULES: tuple[str, ...] = (
     "Do not run extra experiments, optimise automatically, or loop.",
     "A high-level request such as 'start a research cycle' does NOT authorise "
     "approval, rendering, or execution; it only authorises the read/advisory steps.",
-    "Stop after validate_experiment_draft passes and ask the user for approval; "
-    "validation never authorises approval.",
-    "Stop after render_draft_to_yaml and ask the user for RUN; rendering never authorises execution.",
+    "Stop after validate_experiment_draft passes and ask the user for approval.",
+    "Stop after render_draft_to_yaml and ask the user for RUN.",
     "Stop after the final get_session_summary; the research cycle is complete.",
     "Do not start a second iteration (new proposal, draft, or experiment) unless the user explicitly asks.",
-    "Before review/proposal/draft, optionally call retrieve_research_memory for prior related evidence.",
-    "Research memory is evidence-only; retrieved memory does not authorise execution or approval.",
-    "Do not use memory as proof of performance; quant metrics remain authoritative.",
+    "Before review/proposal/draft, optionally call retrieve_research_memory or "
+    "semantic_retrieve_research_memory for prior related evidence.",
+    "Research memory is evidence-only; retrieved memory does not authorise execution or "
+    "approval; semantic matches are suggestions, not proof.",
+    "Quant metrics remain authoritative. If semantic retrieval fails, report and stop; "
+    "do not invent prior evidence.",
     "For local Qwen-backed review/proposal/draft, use provider=openai, model=qwen2.5-7b-instruct, base_url=http://127.0.0.1:1234/v1.",
     "Governed sequence: create session -> check state -> execute baseline if "
     "needed -> build context -> review -> proposal -> draft -> validate -> "
     "approval -> render YAML -> RUN execution -> post-run review -> session summary.",
     "The quant engine remains authoritative; Qwen coordinates and interprets only.",
+    "Config routing: 'what can we change?'->list_changeable_config_fields; "
+    "'what features?'->list_available_features; 'which models?'->list_supported_models; "
+    "'config overview?'->inspect_experiment_config. Never invent feature types or model names.",
+    "For multiple changes or feature add/remove/replace, use generate_config_change_draft "
+    "(changes is a JSON array). generate_parameter_change_draft handles a single set.",
+    "If generate_config_change_draft fails, report the display verbatim and stop. "
+    "Do not retry the same change. Use 'value' key in each change dict, never 'proposed_value'.",
+    "For 'what did we learn from X vs Y?' or 'inspect evidence for X vs Y', use "
+    "inspect_comparison_evidence (direct, authoritative). For 'have we tested X before?', "
+    "use retrieve_research_memory(artefact_type=comparison_evidence). If no evidence "
+    "exists, run compare_experiment_metrics first. Metrics remain authoritative.",
 )
 
 
@@ -350,6 +428,548 @@ def retrieve_research_memory(
     display = f"Retrieved {len(items)} related memory item(s) for {_short(focus, 80)}."
     data = {"item_count": len(items), "items": items}
     return _envelope(True, "research_memory_retrieved", display, data, "run_experiment_review")
+
+
+# ---------------------------------------------------------------------------
+# Semantic research memory tools (Phase 2 — local embedding retrieval)
+#
+# Evidence-only. These layer a local embedding index over the Phase 1 records
+# and retrieve by cosine similarity. They embed compact summaries via a local
+# embeddings endpoint only (never a chat/completion LLM), run no experiment,
+# approve nothing, render nothing, and never authorise execution. Full artefacts
+# stay on disk; only compact pointers (scores, summaries, paths, hashes, tags)
+# are returned.
+# ---------------------------------------------------------------------------
+
+
+def get_semantic_research_memory_status() -> dict[str, Any]:
+    """Read-only: report whether the semantic memory index exists and its size."""
+    status = _api.get_semantic_research_memory_status()
+    if status["index_exists"]:
+        display = (
+            f"Semantic research memory contains {status['item_count']} embedded "
+            f"item(s) using {status['embedding_model']}."
+        )
+        next_action = "semantic_retrieve_research_memory"
+    else:
+        display = (
+            "Semantic research memory index does not exist yet. Run "
+            "index_semantic_research_memory."
+        )
+        next_action = "index_semantic_research_memory"
+    return _envelope(True, "semantic_memory_status", display, status, next_action)
+
+
+def index_semantic_research_memory(
+    provider: str = "openai",
+    model: str = "text-embedding-nomic-embed-text-v1.5",
+    base_url: str = "http://127.0.0.1:1234/v1",
+) -> dict[str, Any]:
+    """Controlled write: embed Phase 1 memory records into a local semantic index.
+
+    Embeds compact summaries via the local embeddings endpoint only — never a
+    chat/completion LLM. Runs no experiment, approves/renders/executes nothing,
+    mutates no source artefacts, and reads no arbitrary paths. Requires a Phase 1
+    index first; on embedding-endpoint failure it returns a clean ok=false
+    envelope and stops (no auto-retry).
+    """
+    result = _api.index_semantic_research_memory(
+        provider=provider, model=model, base_url=base_url
+    )
+    status = result.get("status")
+    if status == "no_phase1_index":
+        return _envelope(
+            False, "semantic_memory_index_blocked",
+            "No Phase 1 research memory index found. Run index_research_memory first.",
+            {"error": "Phase 1 memory index not found", **result},
+            "index_research_memory",
+        )
+    if status == "embedding_failed":
+        return _envelope(
+            False, "semantic_memory_index_failed",
+            "Embedding endpoint failed. Report the failure and stop; do not "
+            f"auto-retry. Error: {_short(str(result.get('error')), 160)}",
+            result,
+            "ask_user_to_retry_semantic_index",
+        )
+    display = (
+        f"Embedded {result['embedded_count']} research memory item(s) using "
+        f"{result['embedding_model']}."
+    )
+    return _envelope(
+        True, "semantic_memory_indexed", display, result, "semantic_retrieve_research_memory"
+    )
+
+
+def semantic_retrieve_research_memory(
+    query: str,
+    top_k: int = 5,
+    experiment_name: str | None = None,
+    failure_modes: list[str] | None = None,
+    artefact_type: str | None = None,
+    tags: list[str] | None = None,
+    provider: str = "openai",
+    model: str = "text-embedding-nomic-embed-text-v1.5",
+    base_url: str = "http://127.0.0.1:1234/v1",
+) -> dict[str, Any]:
+    """Read-only: retrieve prior research evidence by local semantic similarity.
+
+    Embeds the query with the same local embedding model and ranks the semantic
+    index by cosine similarity (with optional metadata filters). Returns up to
+    top_k compact items (scores, summaries, paths, hashes, tags, failure modes)
+    — never full artefact bodies. Evidence only: authorises no execution,
+    approval, or rendering; quant metrics remain authoritative. On any failure it
+    returns a clean ok=false envelope and stops — it never invents evidence.
+    """
+    result = _api.semantic_retrieve_research_memory(
+        query=query,
+        top_k=top_k,
+        experiment_name=experiment_name,
+        failure_modes=failure_modes,
+        artefact_type=artefact_type,
+        tags=tags,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+    )
+    status = result.get("status")
+    if status == "no_phase1_index":
+        return _envelope(
+            False, "semantic_memory_unavailable",
+            "No Phase 1 research memory index found. Run index_research_memory first.",
+            {"error": "Phase 1 memory index not found", "query": query, "items": []},
+            "index_research_memory",
+        )
+    if status == "no_semantic_index":
+        return _envelope(
+            False, "semantic_memory_unavailable",
+            "No semantic memory index found. Run index_semantic_research_memory first.",
+            {"error": "Semantic memory index not found", "query": query, "items": []},
+            "index_semantic_research_memory",
+        )
+    if status == "embedding_failed":
+        return _envelope(
+            False, "semantic_memory_retrieval_failed",
+            "Embedding endpoint failed. Report the failure and stop; do not "
+            f"auto-retry or invent evidence. Error: {_short(str(result.get('error')), 160)}",
+            {"error": result.get("error"), "query": query, "items": []},
+            "ask_user_to_retry_semantic_retrieval",
+        )
+    items = result.get("items", [])
+    focus = ", ".join(failure_modes) if failure_modes else _short(query, 80)
+    display = f"Retrieved {len(items)} semantically related memory item(s) for {focus}."
+    data = {"query": query, "item_count": len(items), "items": items}
+    return _envelope(
+        True, "semantic_memory_retrieved", display, data, "run_experiment_review"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Explicit parameter-change draft (deterministic, no LLM)
+#
+# Use this when the user requests a specific config change ("set alpha to 2").
+# It applies exactly that change, reads the real current value from the base
+# config, and persists an unapproved draft. It never approves, renders, executes,
+# or calls an LLM.
+# ---------------------------------------------------------------------------
+
+
+def generate_parameter_change_draft(
+    experiment_name: str,
+    field_path: str,
+    proposed_value: Any,
+    session_id: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Create a draft from one explicit, user-requested config change.
+
+    Use this (NOT generate_experiment_draft) when the user asks for a specific
+    change such as 'set model.params.alpha to 2'. Deterministic and LLM-free:
+    applies exactly field_path -> proposed_value, reads the real current value
+    from the base config, assigns a unique proposed name, validates against the
+    schema, and persists an unapproved draft. Never approves, renders, executes,
+    or retries. Invalid field paths and schema-incompatible values are refused.
+    """
+    result = _api.generate_parameter_change_draft(
+        experiment_name=experiment_name,
+        field_path=field_path,
+        proposed_value=proposed_value,
+        reason=reason,
+    )
+    status = result.get("status")
+    if status != "ok":
+        errors = [_short(e, 160) for e in result.get("errors", [])][:3]
+        display = (
+            f"Parameter-change draft refused ({status}): " + ("; ".join(errors) or "see errors")
+            + ". Do not invent a fallback field or value; ask the user to correct the request."
+        )
+        return _envelope(
+            False, "parameter_change_draft_failed", display,
+            {"experiment_name": experiment_name, "field_path": field_path,
+             "status": status, "errors": errors},
+            "ask_user_to_correct_parameter_change",
+        )
+
+    draft = result["draft"]
+    _record_event(
+        session_id,
+        SessionEventType.DRAFT_GENERATED,
+        experiment_name,
+        {"draft_id": draft.draft_id, "draft_hash": draft.draft_hash,
+         "proposed_name": draft.proposed_name},
+    )
+    diff = _compact_diff(draft.changes)
+    diff_lines = [
+        f"{d['field']}: {d['current_value']} -> {d['proposed_value']}" for d in diff
+    ]
+    data = {
+        "experiment_name": experiment_name,
+        "draft_id": draft.draft_id,
+        "proposed_name": draft.proposed_name,
+        "approved": draft.approved,
+        "diff": diff,
+        "draft_path": _api.draft_artifact_path(experiment_name, draft.draft_id),
+    }
+    display = (
+        f"Draft {draft.draft_id} '{draft.proposed_name}' created (approved="
+        f"{draft.approved}). Proposed config diff: " + ("; ".join(diff_lines) or "(none)")
+    )
+    return _envelope(
+        True, "parameter_change_draft_generated", display, data, "validate_experiment_draft"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Authoritative experiment metrics (read from artefacts, NOT from RAG memory)
+#
+# Use these to answer performance questions (Sharpe, OOS Sharpe, drawdown, hit
+# rate, "did it improve?"). They read real on-disk diagnostics — never research
+# memory. Compact output; full reports stay on disk.
+# ---------------------------------------------------------------------------
+
+
+def get_experiment_metrics(experiment_name: str) -> dict[str, Any]:
+    """Read-only: authoritative metrics for one experiment from its artefacts.
+
+    Use this (NOT retrieve_research_memory / semantic_retrieve_research_memory)
+    to answer Sharpe / OOS Sharpe / drawdown / hit-rate questions. Returns compact
+    metrics from real diagnostics with a missing_metrics list — never invented
+    values. No LLM, no execution.
+    """
+    result = _api.get_experiment_metrics(experiment_name)
+    if result.get("status") == "not_found":
+        return _envelope(
+            False, "experiment_metrics_unavailable",
+            f"No metrics artefacts found for '{experiment_name}'. Do not invent "
+            "metrics; verify the experiment name or run it first.",
+            {"experiment_name": experiment_name, "metrics": {}, "missing_metrics": []},
+            "list_experiments",
+        )
+    m = result["metrics"]
+    fm = result.get("failure_modes") or []
+    display = (
+        f"Metrics for {experiment_name}: Sharpe={_mfmt(m.get('sharpe_ratio'))}, "
+        f"mean OOS Sharpe={_mfmt(m.get('mean_oos_sharpe'))}, "
+        f"MaxDD={_mfmt(m.get('max_drawdown_pct'))}. "
+        f"Failure modes: {', '.join(fm) or 'none'}."
+    )
+    return _envelope(
+        True, "experiment_metrics_loaded", display, result, "compare_experiment_metrics"
+    )
+
+
+def compare_experiment_metrics(
+    base_experiment_name: str,
+    candidate_experiment_name: str,
+    session_id: str | None = None,
+    research_question: str | None = None,
+    tested_change: str | None = None,
+) -> dict[str, Any]:
+    """Read-only: compare two experiments using authoritative artefact metrics.
+
+    Use this to answer 'did performance improve?' or 'what did we learn?'.
+    Computes Sharpe / mean OOS Sharpe / max-drawdown deltas from real diagnostics
+    — never RAG memory.  Persists a compact comparison_evidence record so future
+    memory queries can retrieve before/after conclusions.  No LLM, no execution.
+
+    Optional context fields enrich the evidence record:
+      research_question: the question this comparison answers
+      tested_change: what was changed (e.g. "added risk_adjusted_momentum_20")
+    """
+    result = _api.compare_experiment_metrics(
+        base_experiment_name,
+        candidate_experiment_name,
+        session_id=session_id,
+        research_question=research_question,
+        tested_change=tested_change,
+    )
+    if result.get("status") == "not_found":
+        missing = result.get("missing_experiments", [])
+        return _envelope(
+            False, "experiment_metrics_unavailable",
+            f"Missing metrics artefacts for: {', '.join(missing) or 'unknown'}. "
+            "Do not invent metrics.",
+            result,
+            "list_experiments",
+        )
+    data = dict(result)
+    data["evidence_path"] = result.get("evidence_path")
+    return _envelope(
+        True, "experiment_metrics_compared", result["conclusion"], data,
+        "get_session_summary",
+    )
+
+
+def inspect_comparison_evidence(
+    base_experiment_name: str,
+    candidate_experiment_name: str,
+) -> dict[str, Any]:
+    """Read-only: compact summary of a specific comparison evidence record.
+
+    Directly reads the persisted comparison_evidence.json for the given
+    base/candidate pair — no LLM, no RAG, no execution.  Returns what was
+    tested, metric deltas, failure modes, and the research conclusion.  If no
+    record exists, suggests running compare_experiment_metrics first.
+    """
+    result = _api.inspect_comparison_evidence(
+        base_experiment_name, candidate_experiment_name
+    )
+    if result.get("status") == "not_found":
+        return _envelope(
+            False, "comparison_evidence_not_found",
+            f"No comparison evidence for {base_experiment_name!r} vs "
+            f"{candidate_experiment_name!r}. "
+            "Run compare_experiment_metrics first to create the record.",
+            result,
+            "compare_experiment_metrics",
+        )
+
+    deltas = result.get("metric_deltas") or {}
+    tested = result.get("tested_change") or ""
+    base_modes = set(result.get("failure_modes_base") or [])
+    cand_modes = result.get("failure_modes_candidate") or []
+
+    delta_parts: list[str] = []
+    d_sharpe = deltas.get("delta_sharpe")
+    d_oos = deltas.get("delta_mean_oos_sharpe")
+    d_dd = deltas.get("delta_max_drawdown_pct")
+    if d_sharpe is not None:
+        delta_parts.append(f"Sharpe {d_sharpe:+.3f}")
+    if d_oos is not None:
+        delta_parts.append(f"OOS Sharpe {d_oos:+.3f}")
+    if d_dd is not None:
+        dd_str = f"MaxDD {d_dd:+.2f}pp" if d_dd != 0.0 else "MaxDD unchanged"
+        delta_parts.append(dd_str)
+
+    if cand_modes:
+        modes_str = (
+            "failure modes persisted"
+            if set(cand_modes) & base_modes
+            else "new failure modes detected"
+        )
+    else:
+        modes_str = "no failure modes"
+
+    parts = [f"Comparison {base_experiment_name} -> {candidate_experiment_name}"]
+    if tested:
+        parts.append(f"tested {tested}")
+    parts.append(", ".join(delta_parts) if delta_parts else "no numeric deltas")
+    parts.append(modes_str)
+    display = "; ".join(parts) + "."
+
+    return _envelope(True, "comparison_evidence_inspected", display, result, None)
+
+
+# ---------------------------------------------------------------------------
+# Config introspection tools (read-only; no LLM, no execution)
+# ---------------------------------------------------------------------------
+
+
+def inspect_experiment_config(experiment_name: str) -> dict[str, Any]:
+    """Read-only: compact summary of the current YAML config for an experiment.
+
+    Returns model type/params, feature count/names, validation and execution
+    settings, universe, and the list of changeable field paths.  Does NOT return
+    the raw YAML — the payload is always compact.  Executes nothing, calls no LLM,
+    reads no arbitrary paths.
+    """
+    result = _api.inspect_experiment_config(experiment_name)
+    if result.get("status") == "config_not_found":
+        return _envelope(
+            False, "config_not_found",
+            f"No config found for {experiment_name!r}. "
+            + (result.get("errors") or [""])[0],
+            {"experiment_name": experiment_name, "errors": result.get("errors", [])},
+            "list_experiments",
+        )
+    model_type = (result.get("model") or {}).get("type", "unknown")
+    feat_count = (result.get("features") or {}).get("count", 0)
+    val_type = (result.get("validation") or {}).get("type", "unknown")
+    display = (
+        f"Config for {experiment_name!r}: model={model_type}, "
+        f"{feat_count} feature(s), validation={val_type}."
+    )
+    return _envelope(
+        True, "experiment_config_inspected", display,
+        result,
+        "list_changeable_config_fields",
+    )
+
+
+def list_changeable_config_fields(
+    experiment_name: str | None = None,
+) -> dict[str, Any]:
+    """Read-only: list the controlled config-change surface — paths, operations, types.
+
+    Returns the authoritative set of field paths that generate_config_change_draft
+    will accept, with their operations (set / add / remove / replace) and current
+    values when experiment_name is given.  Use this before building a draft so you
+    know exactly what can and cannot be changed.
+    """
+    result = _api.list_changeable_config_fields(experiment_name)
+    n = len(result.get("fields", []))
+    entry_count = result.get("feature_entry_count")
+    feat_info = (
+        f"; current feature entries: {entry_count}" if entry_count is not None else ""
+    )
+    display = (
+        f"{n} changeable field(s) across model, features, labels, signal, "
+        f"validation, execution, portfolio_construction{feat_info}."
+    )
+    return _envelope(
+        True, "changeable_config_fields_listed", display, result,
+        "generate_config_change_draft",
+    )
+
+
+def list_available_features(
+    experiment_name: str | None = None,
+    family: str | None = None,
+    query: str | None = None,
+) -> dict[str, Any]:
+    """Read-only: valid feature types from the authoritative schema.
+
+    Returns schema-validated feature types only — never invents names.  When
+    experiment_name is given, shows which types are currently used.  Optional
+    family/query filters narrow the list.  Use this to find valid types before
+    calling generate_config_change_draft with an add/remove/replace operation.
+    """
+    result = _api.list_available_features(
+        experiment_name=experiment_name, family=family, query=query
+    )
+    total = result.get("total_types", 0)
+    used_count = result.get("currently_used_count")
+    used_str = f"; {used_count} currently used" if used_count is not None else ""
+    display = f"{total} valid feature type(s) in schema{used_str}."
+    return _envelope(
+        True, "available_features_listed", display, result,
+        "generate_config_change_draft",
+    )
+
+
+def list_supported_models(
+    experiment_name: str | None = None,
+) -> dict[str, Any]:
+    """Read-only: model types supported by the quant engine / config schema.
+
+    Returns schema-authoritative model names only — never invents models.
+    Model switching IS supported (via generate_config_change_draft with
+    field_path='model.type', operation='set').  When experiment_name is given,
+    highlights the current model type.
+    """
+    result = _api.list_supported_models(experiment_name=experiment_name)
+    current = result.get("current_model") or "unknown"
+    n = len(result.get("supported_models", []))
+    switching = result.get("model_switching_supported", False)
+    display = (
+        f"Current model: {current}. {n} supported model type(s). "
+        f"Model switching: {'supported' if switching else 'not supported'}."
+    )
+    return _envelope(
+        True, "supported_models_listed", display, result,
+        "generate_config_change_draft" if switching else None,
+    )
+
+
+def generate_config_change_draft(
+    experiment_name: str,
+    changes: str,
+    session_id: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Deterministic multi-change config draft (NO LLM).
+
+    ``changes`` is a JSON array of change dicts.  Supported per-change shapes:
+
+      set:     {"field_path": "model.params.alpha", "operation": "set", "value": 2.0}
+      add:     {"field_path": "features.entries", "operation": "add",
+                "value": {"name": "...", "type": "...", "params": {...}}}
+      remove:  {"field_path": "features.entries", "operation": "remove",
+                "value": "feature_name"}
+      replace: {"field_path": "features.entries", "operation": "replace",
+                "old_value": "old_name", "value": {"name": "...", "type": "...", ...}}
+
+    All changes are validated before any draft is created.  Returns ok=false on
+    invalid field paths, unsupported feature types, absent features, duplicate
+    adds, or schema-incompatible values — with no fallback invented.  The draft is
+    unapproved.  Never approves, renders, executes, or calls an LLM.
+    """
+    # Parse the JSON changes string — refuse malformed input rather than guessing.
+    try:
+        parsed_changes: list[dict[str, Any]] = (
+            changes if isinstance(changes, list) else __import__("json").loads(changes)
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _envelope(
+            False, "config_change_draft_failed",
+            f"'changes' must be a JSON array of change objects: {exc}",
+            {"error": str(exc)},
+            "list_changeable_config_fields",
+        )
+
+    result = _api.generate_config_change_draft(
+        experiment_name, parsed_changes, reason=reason
+    )
+    status = result.get("status", "")
+
+    if status != "ok":
+        errors = result.get("errors", [])
+        err_display = "; ".join(e for e in errors[:3]) if errors else "see errors"
+        return _envelope(
+            False, "config_change_draft_failed",
+            f"Draft failed for {experiment_name!r}: {err_display}",
+            {"experiment_name": experiment_name, "status": status, "errors": errors},
+            "stop_and_report_to_user",
+        )
+
+    draft = result["draft"]
+    _record_event(
+        session_id,
+        SessionEventType.DRAFT_GENERATED,
+        experiment_name,
+        {
+            "draft_id": draft.draft_id,
+            "draft_hash": draft.draft_hash,
+            "proposed_name": draft.proposed_name,
+        },
+    )
+    diff = _compact_multi_diff(draft.changes)
+    diff_lines = _diff_summary_lines(diff)
+    data = {
+        "experiment_name": experiment_name,
+        "draft_id": draft.draft_id,
+        "proposed_name": draft.proposed_name,
+        "approved": draft.approved,
+        "diff": diff,
+        "draft_path": _api.draft_artifact_path(experiment_name, draft.draft_id),
+    }
+    display = (
+        f"Draft {draft.draft_id} '{draft.proposed_name}' "
+        f"({len(diff)} change(s); approved={draft.approved}).\n  "
+        + ("\n  ".join(diff_lines) or "(no changes)")
+    )
+    return _envelope(True, "config_change_draft_generated", display, data,
+                     "validate_experiment_draft")
 
 
 # ---------------------------------------------------------------------------
@@ -1046,6 +1666,70 @@ _TOOLS: list[tuple[Any, str, str]] = [
      "top_k). Returns compact items (summaries, paths, hashes, tags, matched "
      "terms) — never full artefacts. Evidence only: authorises no execution, "
      "approval, or rendering; quant metrics remain authoritative."),
+    (get_semantic_research_memory_status, "get_semantic_research_memory_status",
+     "Read-only: report whether the semantic (embedding) memory index exists, "
+     "how many items it holds, and the embedding model. Evidence layer only."),
+    (index_semantic_research_memory, "index_semantic_research_memory",
+     "Controlled write: embed Phase 1 memory records into a local semantic index "
+     "via a local embeddings endpoint only (provider/model/base_url; default "
+     "LM Studio nomic). Calls no chat/completion LLM, runs no experiment, "
+     "approves/renders/executes nothing, mutates no source artefacts, reads no "
+     "arbitrary paths. Requires a Phase 1 index first."),
+    (semantic_retrieve_research_memory, "semantic_retrieve_research_memory",
+     "Read-only: retrieve prior research evidence by local semantic similarity "
+     "(query embedded with the same model; optional experiment_name / "
+     "failure_modes / artefact_type / tags filters; top_k). Returns compact items "
+     "with cosine scores (summaries, paths, hashes, tags) — never full artefacts. "
+     "Evidence only: suggestions, not proof; authorises no execution, approval, "
+     "or rendering. On failure it stops and never invents evidence."),
+    (inspect_experiment_config, "inspect_experiment_config",
+     "Read-only: compact summary of an experiment's current YAML config — model "
+     "type/params, feature count/names, validation settings, universe, and the "
+     "list of changeable field paths. Does NOT return raw YAML. Executes nothing, "
+     "calls no LLM, reads no arbitrary paths."),
+    (list_changeable_config_fields, "list_changeable_config_fields",
+     "Read-only: authoritative list of config field paths that generate_config_change_draft "
+     "accepts, with their operations (set / add / remove / replace), types, allowed "
+     "values, and current values when experiment_name is given. Call this before "
+     "building a draft to know what can and cannot be changed."),
+    (list_available_features, "list_available_features",
+     "Read-only: schema-valid feature types only — never invents names. Includes "
+     "family, required_params, and whether each type is currently used when "
+     "experiment_name is given. Optional family/query filters. Use this to find valid "
+     "feature types before calling generate_config_change_draft with add/remove/replace."),
+    (list_supported_models, "list_supported_models",
+     "Read-only: model types supported by the quant engine schema — never invents "
+     "models. Model switching IS supported via generate_config_change_draft with "
+     "field_path='model.type', operation='set'. Highlights the current model when "
+     "experiment_name is given."),
+    (generate_config_change_draft, "generate_config_change_draft",
+     "Use this for multi-change or feature add/remove/replace drafts. Deterministic, "
+     "no LLM: accepts a JSON-array 'changes' with set/add/remove/replace operations, "
+     "validates all feature types against the schema, refuses unknown features/models/"
+     "paths, assigns a unique name, and persists an UNAPPROVED draft. Never approves, "
+     "renders, or executes. generate_parameter_change_draft remains available for "
+     "simple single-field set operations." + _SESSION_HINT),
+    (generate_parameter_change_draft, "generate_parameter_change_draft",
+     "Use this (NOT generate_experiment_draft) when the user asks for a specific "
+     "config change such as 'set model.params.alpha to 2'. Deterministic, no LLM: "
+     "applies exactly field_path -> proposed_value, reads the real current value "
+     "from the base config, assigns a unique name, validates, and persists an "
+     "UNAPPROVED draft. Refuses invalid field paths and schema-incompatible values "
+     "(no fallback field invented). Never approves, renders, or executes." + _SESSION_HINT),
+    (get_experiment_metrics, "get_experiment_metrics",
+     "Read-only: authoritative metrics (Sharpe, OOS Sharpe, drawdown, hit rate, "
+     "failure modes) for one experiment, read from real artefacts. Use this — NOT "
+     "retrieve_research_memory / semantic_retrieve_research_memory — to answer "
+     "performance questions. Missing metrics are reported, never invented."),
+    (compare_experiment_metrics, "compare_experiment_metrics",
+     "Read-only: compare two experiments (Sharpe / mean OOS Sharpe / max-drawdown "
+     "deltas + failure modes) using real artefact metrics, not RAG memory. Use this "
+     "to answer whether performance improved. Missing metrics are reported clearly."),
+    (inspect_comparison_evidence, "inspect_comparison_evidence",
+     "Read-only: inspect a specific comparison evidence record for a base/candidate "
+     "pair. Returns tested_change, metric deltas, failure modes, and conclusion from "
+     "the persisted record — no LLM, no RAG. Direct authoritative summary. If no "
+     "record exists, run compare_experiment_metrics first to create it."),
     (list_experiments, "list_experiments",
      "List experiments that have persisted result artefacts. No side effects."),
     (create_research_session, "create_research_session",

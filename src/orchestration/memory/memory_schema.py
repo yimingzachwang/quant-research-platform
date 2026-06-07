@@ -30,6 +30,7 @@ ARTEFACT_TYPES: tuple[str, ...] = (
     "draft",
     "report",
     "session",
+    "comparison_evidence",
 )
 
 # Hard cap so a single summary can never stream a full artefact into a response.

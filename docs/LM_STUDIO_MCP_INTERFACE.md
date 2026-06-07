@@ -225,6 +225,9 @@ When calling the LLM-backed tools (`run_experiment_review`,
 | `get_research_memory_status` | Whether the memory index exists + item/experiment counts | no | no |
 | `index_research_memory` | Build/refresh the memory index from known artefacts only | no | memory index |
 | `retrieve_research_memory` | Retrieve prior evidence by keyword/metadata (compact) | no | no |
+| `get_semantic_research_memory_status` | Whether the semantic index exists + item count + model | no | no |
+| `index_semantic_research_memory` | Embed Phase 1 records into a local semantic index | embeddings only | semantic index |
+| `semantic_retrieve_research_memory` | Retrieve prior evidence by semantic similarity (compact) | embeddings only | no |
 | `list_experiments` | List experiments with artefacts | no | no |
 | `create_research_session` | Start a session | no | session |
 | `get_session_summary` | Current session state (needs session_id UUID) | no | no |
@@ -235,11 +238,15 @@ When calling the LLM-backed tools (`run_experiment_review`,
 | `run_experiment_review` | LLM review of diagnostics | yes | session event |
 | `generate_iteration_proposal` | Advisory next-step proposal | yes | session event |
 | `generate_experiment_draft` | Schema-bounded config draft (deltas, not YAML) | yes | draft + event |
+| `generate_parameter_change_draft` | Draft from one **explicit** user-requested field change (deterministic) | no | draft + event |
 | `validate_experiment_draft` | Validate draft against schema | no | session event |
 | `approve_experiment_draft` | **Explicit** approval (only here); needs `approval_confirmation="APPROVE"` | no | draft + event |
 | `render_draft_to_yaml` | Render approved draft to YAML (no execution) | no | config + event |
 | `execute_approved_config` | Run ONE approved config; needs `confirmation="RUN"` | no | run + events |
 | `review_post_run_result` | LLM review of freshly generated artefacts | yes | session event |
+| `get_experiment_metrics` | **Authoritative** metrics from artefacts (Sharpe, OOS, drawdown) | no | no |
+| `compare_experiment_metrics` | Compare two experiments using **real** artefact metrics | no | no |
+| `inspect_comparison_evidence` | Read-only summary of a persisted comparison evidence record | no | no |
 
 Governance built into the tools:
 
@@ -341,6 +348,175 @@ Index the current Zeto research memory.
 Have we seen this failure mode before?
 Retrieve prior memory related to poor_oos_consistency and catastrophic_split.
 Use retrieved memory to inform the next proposal, but do not execute anything.
+```
+
+## Research Memory / Phase 2 Semantic Retrieval
+
+Phase 2 layers **local semantic retrieval** on top of the Phase 1 records. The
+Phase 1 JSONL index is the source of truth; each compact `MemoryRecord` is turned
+into a short text, embedded with a **local** embedding model, and ranked by
+cosine similarity.
+
+```text
+Phase 1 memory records → compact text to embed → local embedding model
+                       → semantic index → compact semantic results to LM Studio
+```
+
+Still deliberately minimal: **no** FAISS/Chroma/LanceDB (a transparent local
+JSONL + cosine store), **no** LangChain/LangGraph/agent loop, **no** chat/
+completion LLM (the embeddings endpoint only), **no** raw-document streaming. The
+embedded text is built from the compact record — never the underlying artefact:
+
+```text
+Experiment: <experiment_name>
+Artefact type: <artefact_type>
+Failure modes: <failure_modes>
+Tags: <tags>
+Summary: <short_summary>
+Path: <path>
+Context hash: <context_hash>
+```
+
+Storage:
+
+- `results/research_memory/semantic_memory_index.jsonl` — one embedded record per
+  line (`memory_id`, `embedding_model`, `embedding_dim`, `embedding`,
+  `source_hash`, `indexed_at`, `text_preview`, compact `metadata`).
+- `results/research_memory/semantic_memory_manifest.json` — embedding model, dim,
+  item count, timestamp.
+
+Embedding model (default, local LM Studio OpenAI-compatible endpoint):
+
+```text
+provider  openai
+model     text-embedding-nomic-embed-text-v1.5
+base_url  http://127.0.0.1:1234/v1
+```
+
+Tools:
+
+- **`get_semantic_research_memory_status`** — read-only. Whether the semantic
+  index exists, how many items it holds, and the embedding model.
+- **`index_semantic_research_memory`** — controlled write. Embeds the Phase 1
+  records via the local embeddings endpoint only — **no** chat/completion LLM, no
+  experiment, no approval/render/RUN, no arbitrary-path access, no source-artefact
+  mutation. Re-indexing refreshes in place (stable `memory_id`) and reuses
+  unchanged embeddings via a `source_hash` (no duplicates, no needless re-embed).
+- **`semantic_retrieve_research_memory`** — read-only. Embeds the query with the
+  same model, ranks by cosine similarity, applies optional filters
+  (`experiment_name`, `failure_modes`, `artefact_type`, `tags`), and returns up
+  to `top_k` compact items with similarity `score` (3 d.p.) — never full bodies.
+
+Fallback / failure behaviour (each returns a clean `ok=false` envelope and
+stops — no auto-retry, no invented evidence):
+
+| Condition | `next_suggested_action` |
+|---|---|
+| No Phase 1 index | `index_research_memory` |
+| No semantic index | `index_semantic_research_memory` |
+| Embedding endpoint failed | stop and report (ask the user to retry) |
+
+Governance: semantic retrieval is **evidence-only** — matches are suggestions,
+not proof. It does **not** authorise approval, rendering, or execution; quant
+metrics remain authoritative.
+
+Example retrieve input:
+
+```json
+{
+  "query": "experiments where momentum features caused poor out-of-sample consistency",
+  "top_k": 5,
+  "experiment_name": "canonical_ml_showcase",
+  "failure_modes": ["poor_oos_consistency"],
+  "artefact_type": "llm_review",
+  "provider": "openai",
+  "model": "text-embedding-nomic-embed-text-v1.5",
+  "base_url": "http://127.0.0.1:1234/v1"
+}
+```
+
+Example LM Studio prompts:
+
+```text
+Index semantic research memory using local embeddings.
+Retrieve semantically similar prior research about momentum instability and poor OOS consistency.
+Use semantic memory as supporting evidence only. Do not execute anything.
+```
+
+## Explicit parameter changes and authoritative metrics
+
+Two capabilities make the agent reliable for concrete, factual requests — and
+keep RAG memory firmly in its lane (research context, **not** proof of
+performance).
+
+### Explicit config change — `generate_parameter_change_draft`
+
+When the user asks for a **specific** change ("set `model.params.alpha` to 2"),
+use this tool, **not** `generate_experiment_draft` (which is LLM-driven and may
+propose a different value). It is deterministic and LLM-free:
+
+- loads the experiment's base config and reads the **real** current value;
+- whitelists `field_path` against the schema vocabulary (no fallback field is
+  ever invented);
+- creates a draft with exactly that one change, a unique `_vN` proposed name,
+  validates it against the authoritative schema, and persists it **unapproved**.
+
+```json
+{
+  "experiment_name": "canonical_ml_showcase_v9",
+  "field_path": "model.params.alpha",
+  "proposed_value": 2.0,
+  "reason": "Test whether stronger Ridge regularisation improves OOS stability."
+}
+```
+
+Failure is clean: an invalid `field_path` or a schema-incompatible
+`proposed_value` returns `ok=false`, `stage="parameter_change_draft_failed"`,
+persists nothing, calls no LLM, and does not retry. It never approves, renders,
+or executes — the normal validate → approve → render → RUN gates still apply.
+
+### Authoritative metrics — `get_experiment_metrics` / `compare_experiment_metrics`
+
+For any performance question (Sharpe, OOS Sharpe, drawdown, hit rate, "did it
+improve?"), read **real** metrics from artefacts — never from RAG memory and
+never invented.
+
+- **`get_experiment_metrics`** reads `metrics.json` + validation split
+  diagnostics via the deterministic context builder and returns compact metrics
+  (`sharpe_ratio`, `mean_oos_sharpe`, `std_oos_sharpe`, `max_drawdown_pct`,
+  `consistency_tier`, …), detected `failure_modes`, and the
+  `metrics_path` / `report_path` / `plots_dir`. Anything absent is listed under
+  `missing_metrics` — never fabricated. Full reports stay on disk.
+- **`compare_experiment_metrics`** loads both experiments' real metrics and
+  reports base/candidate/delta for Sharpe, mean OOS Sharpe, and max drawdown,
+  each experiment's failure modes, and a concise conclusion. Missing metrics are
+  stated clearly; deltas are `null` when a value is unavailable. It also persists
+  a `comparison_evidence.json` record at
+  `results/comparisons/<base>__vs__<candidate>/` for future retrieval.
+- **`inspect_comparison_evidence`** reads that persisted record directly and
+  returns the tested change, metric deltas, failure modes, and conclusion in a
+  compact envelope. It accepts only `base_experiment_name` and
+  `candidate_experiment_name` — no arbitrary path input. If no record exists,
+  it suggests running `compare_experiment_metrics` first.
+
+Routing for comparison questions:
+- "What did we learn from X vs Y?" / "Inspect evidence for X vs Y" →
+  `inspect_comparison_evidence` (direct, authoritative)
+- "Have we tested X before?" / "Prior comparisons involving momentum?" →
+  `retrieve_research_memory(artefact_type="comparison_evidence")`
+- If no evidence exists → `compare_experiment_metrics` first
+
+These tools call no LLM, execute nothing, and read only known artefact locations.
+RAG memory (`retrieve_research_memory`, `semantic_retrieve_research_memory`)
+remains evidence for research context and must **never** be used to answer an
+authoritative performance question.
+
+Example LM Studio prompts:
+
+```text
+Set model.params.alpha to 2 for canonical_ml_showcase_v9.
+What is the Sharpe and OOS Sharpe for canonical_ml_showcase_v9_v2?
+Did canonical_ml_showcase_v9_v2 improve over canonical_ml_showcase_v9?
 ```
 
 ## Preflight: `check_research_workflow_state`

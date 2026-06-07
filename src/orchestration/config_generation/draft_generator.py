@@ -26,6 +26,12 @@ from src.orchestration.config_generation.draft_schema import (
     ExperimentDraft,
     compute_draft_hash,
 )
+from src.orchestration.config_generation.draft_validator import (
+    allowed_change_paths,
+    change_path_allowed,
+    split_field_path,
+    validate_draft,
+)
 from src.orchestration.llm.llm_interface import call_llm
 from src.orchestration.llm.review_schema import PROVIDER_ANTHROPIC, PROVIDER_STUB
 from src.orchestration.registry.experiment_registry import list_all
@@ -203,8 +209,415 @@ def generate_draft(
 
 
 # ---------------------------------------------------------------------------
+# Explicit, user-requested parameter-change draft (deterministic, NO LLM)
+# ---------------------------------------------------------------------------
+
+
+def generate_parameter_change_draft(
+    experiment_name: str,
+    field_path: str,
+    proposed_value: Any,
+    reason: str | None = None,
+    base: Path | str | None = None,
+    llm_base: Path | str | None = None,
+    configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
+) -> dict[str, Any]:
+    """Create a draft from one explicit, user-requested config change.
+
+    Deterministic and LLM-free: applies exactly the requested
+    ``field_path -> proposed_value`` change against the experiment's base config,
+    reads the current value from that config, assigns the next free ``_vN`` name,
+    validates against the authoritative schema, and persists an unapproved draft.
+
+    Returns a status dict:
+        {"status": "ok", "draft": ExperimentDraft}
+        {"status": "config_not_found" | "not_ml_config" | "invalid_field_path"
+                   | "schema_incompatible", "errors": [...]}
+
+    Never approves, renders, executes, calls an LLM, or retries.  An invalid
+    field path or schema-incompatible value yields a clean failure and persists
+    nothing.
+    """
+    # 1. Load base config.
+    config_path = experiment_config_path(experiment_name, configs_base)
+    try:
+        base_config = load_config(config_path)
+    except FileNotFoundError:
+        return {
+            "status": "config_not_found",
+            "errors": [
+                f"No YAML config found for {experiment_name!r} at {config_path}."
+            ],
+        }
+    if str(base_config.get("version", "1")) != "2":
+        return {
+            "status": "not_ml_config",
+            "errors": [
+                f"Parameter-change drafts require an ML config (version 2); "
+                f"{experiment_name!r} has version {base_config.get('version')!r}."
+            ],
+        }
+
+    # 2. Resolve and whitelist the field path (no fallback field is ever invented).
+    section, field = split_field_path(field_path)
+    if not change_path_allowed(section, field):
+        return {
+            "status": "invalid_field_path",
+            "errors": [
+                f"Invalid or disallowed field_path {field_path!r}. Allowed paths: "
+                + ", ".join(allowed_change_paths())
+            ],
+        }
+
+    # 3. Read the current value from the base config (never from the caller).
+    current_value = _get_current_value(base_config, section, field)
+
+    # 4. Build the single-change draft with a unique proposed name.
+    change = DraftChange(
+        section=section,
+        field=field,
+        current_value=current_value,
+        proposed_value=proposed_value,
+        rationale=reason or f"User-requested change: {field_path} -> {proposed_value!r}.",
+    )
+    proposed_name = _next_available_proposed_name(
+        f"{experiment_name}_v2", base=base, configs_base=configs_base, reports_base=reports_base
+    )
+    draft = ExperimentDraft(
+        draft_id=str(uuid.uuid4()),
+        draft_hash=compute_draft_hash(experiment_name, proposed_name, [change]),
+        base_experiment=experiment_name,
+        source_proposal_hash="",
+        proposed_name=proposed_name,
+        changes=[change],
+        generated_at=datetime.now(UTC).isoformat(),
+    )
+
+    # 5. Validate against the authoritative schema BEFORE persisting.
+    result = validate_draft(draft, base=base, configs_base=configs_base)
+    if not result.is_valid:
+        return {"status": "schema_incompatible", "errors": result.errors}
+
+    # 6. Persist the unapproved draft (no approval, render, or execution here).
+    path = draft_json_path(experiment_name, draft.draft_id, llm_base)
+    dump_json(draft.to_dict(), path)
+    logger.info("Parameter-change draft persisted to %s", path)
+    return {"status": "ok", "draft": draft}
+
+
+# ---------------------------------------------------------------------------
 # Public loader
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Multi-change deterministic draft (NO LLM)  —  generate_config_change_draft
+# ---------------------------------------------------------------------------
+
+
+def generate_config_change_draft(
+    experiment_name: str,
+    changes: list[dict[str, Any]],
+    reason: str | None = None,
+    base: Path | str | None = None,
+    llm_base: Path | str | None = None,
+    configs_base: Path | str | None = None,
+    reports_base: Path | str | None = None,
+) -> dict[str, Any]:
+    """Create a draft from one or more explicit, schema-validated config changes.
+
+    Deterministic and LLM-free.  Accepts a list of change dicts:
+
+        set:     {"field_path": "model.params.alpha", "operation": "set", "value": 2.0}
+        add:     {"field_path": "features.entries", "operation": "add",
+                  "value": {"name": "...", "type": "...", "params": {...}}}
+        remove:  {"field_path": "features.entries", "operation": "remove",
+                  "value": "feature_name"}
+        replace: {"field_path": "features.entries", "operation": "replace",
+                  "old_value": "old_name", "value": {"name": "...", "type": "...", ...}}
+
+    Returns:
+        {"status": "ok", "draft": ExperimentDraft}
+        {"status": "config_not_found" | "not_ml_config" | "invalid_changes"
+                   | "schema_incompatible", "errors": [...]}
+
+    All changes are validated before any draft is created — partial success is not
+    possible.  Never approves, renders, executes, calls an LLM, or retries.
+    """
+    # 1. Load base config.
+    config_path = experiment_config_path(experiment_name, configs_base)
+    try:
+        base_config = load_config(config_path)
+    except FileNotFoundError:
+        return {
+            "status": "config_not_found",
+            "errors": [f"No YAML config found for {experiment_name!r} at {config_path}."],
+        }
+    if str(base_config.get("version", "1")) != "2":
+        return {
+            "status": "not_ml_config",
+            "errors": [
+                f"Config-change drafts require an ML config (version 2); "
+                f"{experiment_name!r} has version {base_config.get('version')!r}."
+            ],
+        }
+
+    if not changes:
+        return {"status": "invalid_changes", "errors": ["At least one change is required."]}
+
+    # 2. Parse all changes, tracking evolving feature state for cross-change validation.
+    pending_feature_names: set[str] = {
+        e.get("name")
+        for e in base_config.get("features", {}).get("entries", [])
+        if isinstance(e, dict) and e.get("name")
+    }
+    all_draft_changes: list[DraftChange] = []
+    all_errors: list[str] = []
+
+    for idx, raw in enumerate(changes):
+        new_dcs, errs = _parse_one_change(raw, base_config, pending_feature_names, reason)
+        if errs:
+            all_errors.extend(f"Change[{idx}]: {e}" for e in errs)
+        else:
+            # Update pending set so later changes see the right state.
+            for dc in new_dcs:
+                if dc.section == "features":
+                    if dc.field == "entries.add":
+                        feat = dc.proposed_value
+                        if isinstance(feat, dict):
+                            pending_feature_names.add(feat.get("name", ""))
+                    elif dc.field == "entries.remove":
+                        pending_feature_names.discard(str(dc.proposed_value or ""))
+            all_draft_changes.extend(new_dcs)
+
+    if all_errors:
+        return {"status": "invalid_changes", "errors": all_errors}
+
+    # 3. Assign next-free proposed name.
+    proposed_name = _next_available_proposed_name(
+        f"{experiment_name}_v2",
+        base=base,
+        configs_base=configs_base,
+        reports_base=reports_base,
+    )
+
+    # 4. Build draft.
+    draft_id = str(uuid.uuid4())
+    draft_hash = compute_draft_hash(experiment_name, proposed_name, all_draft_changes)
+    draft = ExperimentDraft(
+        draft_id=draft_id,
+        draft_hash=draft_hash,
+        base_experiment=experiment_name,
+        source_proposal_hash="",
+        proposed_name=proposed_name,
+        changes=all_draft_changes,
+        generated_at=datetime.now(UTC).isoformat(),
+    )
+
+    # 5. Validate against the authoritative schema BEFORE persisting.
+    result = validate_draft(draft, base=base, configs_base=configs_base)
+    if not result.is_valid:
+        return {"status": "schema_incompatible", "errors": result.errors}
+
+    # 6. Persist the unapproved draft.
+    path = draft_json_path(experiment_name, draft.draft_id, llm_base)
+    dump_json(draft.to_dict(), path)
+    logger.info("Config-change draft persisted to %s", path)
+    return {"status": "ok", "draft": draft}
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers for generate_config_change_draft
+# ---------------------------------------------------------------------------
+
+
+def _parse_one_change(
+    raw: dict[str, Any],
+    base_config: dict[str, Any],
+    pending_feature_names: set[str],
+    reason: str | None,
+) -> tuple[list[DraftChange], list[str]]:
+    """Parse one change dict into DraftChange(s).  Returns (changes, errors).
+
+    ``pending_feature_names`` reflects the state of the feature list *after*
+    all previously processed changes — used for in-batch duplicate detection.
+    """
+    field_path = str(raw.get("field_path", ""))
+    operation = str(raw.get("operation", "set")).lower().strip()
+
+    # Normalise proposed_value → value alias.  Refuse only when both keys are
+    # present with different values (ambiguous intent).
+    has_value = "value" in raw
+    has_pv = "proposed_value" in raw
+    if has_value and has_pv and raw["value"] != raw["proposed_value"]:
+        return [], [
+            "Both 'value' and 'proposed_value' are present but differ. "
+            "Use 'value' (canonical); 'proposed_value' is a deprecated alias "
+            "and must not be used alongside a different 'value'."
+        ]
+    value = raw["value"] if has_value else raw.get("proposed_value")
+
+    if field_path == "features.entries":
+        return _parse_feature_change(raw, pending_feature_names, operation, value, reason)
+
+    # All non-feature changes only support "set".
+    if operation != "set":
+        return [], [
+            f"Operation {operation!r} is not supported for {field_path!r}. "
+            "Only 'set' is valid for non-feature fields."
+        ]
+    section, field = split_field_path(field_path)
+    if not change_path_allowed(section, field):
+        return [], [
+            f"Invalid or disallowed field_path {field_path!r}. "
+            "Allowed paths: " + ", ".join(allowed_change_paths())
+        ]
+    current_value = _get_current_value(base_config, section, field)
+    change = DraftChange(
+        section=section,
+        field=field,
+        current_value=current_value,
+        proposed_value=value,
+        rationale=reason or f"User-requested change: {field_path} -> {value!r}.",
+    )
+    return [change], []
+
+
+def _parse_feature_change(
+    raw: dict[str, Any],
+    pending_feature_names: set[str],
+    operation: str,
+    value: Any,
+    reason: str | None,
+) -> tuple[list[DraftChange], list[str]]:
+    """Parse an add/remove/replace operation on features.entries."""
+    from src.experiments.ml_config import get_feature_required_params, get_valid_feature_types
+
+    valid_types = get_valid_feature_types()
+    required_params = get_feature_required_params()
+
+    if operation == "add":
+        if value is None:
+            return [], [
+                "Missing 'value'. For generate_config_change_draft use changes[].value, "
+                "not changes[].proposed_value. Example: "
+                '{"field_path":"features.entries","operation":"add",'
+                '"value":{"name":"risk_adjusted_momentum_20","type":"risk_adjusted_momentum",'
+                '"params":{"mom_window":20}}}'
+            ]
+        if not isinstance(value, dict):
+            return [], ["Feature 'add' value must be a dict {name, type, params}."]
+        feat_type = value.get("type")
+        feat_name = value.get("name")
+        if not feat_name:
+            return [], ["Feature 'add' value must include a non-empty 'name' field."]
+        if feat_type not in valid_types:
+            return [], [
+                f"Unsupported feature type {feat_type!r}. "
+                f"Valid types: {sorted(valid_types)}"
+            ]
+        if feat_name in pending_feature_names:
+            return [], [
+                f"Feature {feat_name!r} already exists in the config (duplicate add)."
+            ]
+        params = value.get("params") or {}
+        missing_p = [r for r in required_params.get(feat_type, frozenset()) if r not in params]
+        if missing_p:
+            return [], [
+                f"Feature type {feat_type!r} requires params: {missing_p}. "
+                f"Got: {list(params.keys())}"
+            ]
+        change = DraftChange(
+            section="features",
+            field="entries.add",
+            current_value=None,
+            proposed_value=dict(value),
+            rationale=reason or f"Add feature {feat_name!r} (type={feat_type!r}).",
+        )
+        return [change], []
+
+    elif operation == "remove":
+        if value is None:
+            return [], [
+                "Missing 'value'. For generate_config_change_draft use changes[].value "
+                "(the feature name string to remove). Example: "
+                '{"field_path":"features.entries","operation":"remove","value":"feature_name"}'
+            ]
+        if not isinstance(value, str) or not value.strip():
+            return [], ["Feature 'remove' value must be a non-empty string (the feature name)."]
+        if value not in pending_feature_names:
+            return [], [
+                f"Feature {value!r} not found in config. Cannot remove an absent feature."
+            ]
+        change = DraftChange(
+            section="features",
+            field="entries.remove",
+            current_value=None,
+            proposed_value=value,
+            rationale=reason or f"Remove feature {value!r}.",
+        )
+        return [change], []
+
+    elif operation == "replace":
+        old_name = str(raw.get("old_value", "") or "").strip()
+        if not old_name:
+            return [], [
+                "Feature 'replace' requires 'old_value' (the feature name to remove)."
+            ]
+        if old_name not in pending_feature_names:
+            return [], [
+                f"Feature {old_name!r} not found in config. Cannot replace an absent feature."
+            ]
+        if value is None:
+            return [], [
+                "Missing 'value'. For generate_config_change_draft use changes[].value "
+                "(the new feature dict). Example: "
+                '{"field_path":"features.entries","operation":"replace","old_value":"old_name",'
+                '"value":{"name":"new_name","type":"sma","params":{"window":20}}}'
+            ]
+        if not isinstance(value, dict):
+            return [], ["Feature 'replace' value must be a dict {name, type, params}."]
+        feat_type = value.get("type")
+        feat_name = value.get("name")
+        if not feat_name:
+            return [], ["Feature 'replace' value must include a non-empty 'name' field."]
+        if feat_type not in valid_types:
+            return [], [
+                f"Unsupported feature type {feat_type!r}. "
+                f"Valid types: {sorted(valid_types)}"
+            ]
+        # Duplicate check: the new name must not already exist unless it's the one being removed.
+        if feat_name in pending_feature_names and feat_name != old_name:
+            return [], [
+                f"Feature {feat_name!r} already exists in the config "
+                "(duplicate add during replace)."
+            ]
+        params = value.get("params") or {}
+        missing_p = [r for r in required_params.get(feat_type, frozenset()) if r not in params]
+        if missing_p:
+            return [], [f"Feature type {feat_type!r} requires params: {missing_p}."]
+        remove_change = DraftChange(
+            section="features",
+            field="entries.remove",
+            current_value=None,
+            proposed_value=old_name,
+            rationale=reason or f"Replace: remove {old_name!r}.",
+        )
+        add_change = DraftChange(
+            section="features",
+            field="entries.add",
+            current_value=None,
+            proposed_value=dict(value),
+            rationale=reason or f"Replace: add {feat_name!r} (type={feat_type!r}).",
+        )
+        return [remove_change, add_change], []
+
+    else:
+        return [], [
+            f"Invalid operation {operation!r} for features.entries. "
+            "Supported: add, remove, replace."
+        ]
 
 
 def save_draft(

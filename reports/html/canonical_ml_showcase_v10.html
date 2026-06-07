@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Experiment Report: canonical_ml_showcase_v10</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#222;line-height:1.6}
+h1,h2,h3{margin-top:1.5em;border-bottom:1px solid #e8e8e8;padding-bottom:.25em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ccc;padding:8px 12px;text-align:left}
+th{background:#f5f5f5;font-weight:600}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.88em;font-family:monospace}
+img{max-width:100%;height:auto;display:block}
+figure{margin:1.5em 0}
+figcaption{color:#666;font-size:.85em;margin-top:6px}
+hr{border:none;border-top:1px solid #ddd;margin:2em 0}
+ul{padding-left:1.5em}
+li{margin:.3em 0}
+p{margin:.75em 0}
+</style>
+</head>
+<body>
+<h1>Experiment Report: canonical_ml_showcase_v10</h1>
+<ul>
+<li><strong>Period:</strong> 2013-01-01 to 2024-12-31</li>
+<li><strong>Universe:</strong> SPY</li>
+<li><strong>Sharpe ratio:</strong> 0.6223</li>
+</ul>
+<h2>Research Thesis &amp; Methodology</h2>
+<p>
+<strong>Hypothesis:</strong> The feature space constructed from SPY price history contains statistically reliable information about 21-day forward returns. A RidgeRegression model trained on 6 engineered features can extract this signal and translate it into a risk-adjusted return edge after transaction costs.
+</p>
+<p>
+<strong>Feature rationale:</strong>
+</p>
+<ul>
+<li>**<code>mom_20</code>** (window: 20): Trailing-return momentum captures the continuation of recent price trends — a well-documented persistent anomaly attributed to investor underreaction and gradual information diffusion.</li>
+<li>**<code>vol_21</code>** (window: 21): Rolling realised volatility characterises the current market regime: elevated volatility signals risk-off environments where expected returns and risk premia shift materially.</li>
+<li>**<code>zscore_20</code>** (window: 20): Rolling z-score normalisation transforms raw signals into a stationary, mean-zero representation, mitigating regime-level drift that would otherwise confound the model&#x27;s cross-period comparisons.</li>
+<li>**<code>trend_20</code>** (window: 20): Trend strength (slope R²) quantifies how consistently directional a price series has been — distinguishing sustained trends from noisy mean-reverting behaviour.</li>
+</ul>
+<p>
+<strong>Label construction:</strong> <code>forward_returns</code> with 21-period horizon. Forward log returns are the direct target of the predictive task: the model learns to rank periods by expected price appreciation.
+</p>
+<p>
+<strong>Model choice:</strong> Ridge regression (L2 regularisation) is the natural baseline for financial ML: it is interpretable, computationally stable, and its regularisation controls overfitting in the high-noise, low signal-to-noise regime of asset returns without eliminating features entirely.
+</p>
+<table><thead>
+<tr><th>Hyperparameter</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>alpha</td><td>1.0</td></tr>
+</tbody></table>
+<p>
+<strong>Signal translation:</strong> The sign signal translates continuous predictions into a binary long/flat position: positive prediction → long, non-positive → flat. This is the simplest leakage-free translation of regression output into a tradeable signal.
+</p>
+<p>
+<strong>Key risks and limitations:</strong>
+</p>
+<ul>
+<li>*Low signal-to-noise ratio* — Asset return prediction is a notoriously difficult task. Even a statistically significant in-sample fit does not guarantee that the signal survives out-of-sample in a different market regime.</li>
+<li>*Regime non-stationarity* — Feature-return relationships that held during the training window may weaken or reverse in different macro environments. Walk-forward validation tests chronological robustness but cannot fully simulate live deployment.</li>
+<li>*Overfitting risk* — With a limited sample and multiple features, regularisation is essential. Coefficient stability across walk-forward splits is a key diagnostic for detecting overfitting.</li>
+<li>*Transaction costs* — ML signals can produce frequent position changes. Cost drag compounds at high turnover; the model&#x27;s net alpha must comfortably exceed the cost of executing its predicted positions.</li>
+</ul>
+<p>
+<strong>Scope:</strong> This investigation is a systematic demonstration of the full ML research process: feature engineering, leakage-safe alignment, regularised model training, walk-forward validation, and signal translation. *The methodology is the product.*
+</p>
+<h2>Universe Construction &amp; Coverage</h2>
+<p>
+The research universe comprises 1 institutional ETF spanning US equities (SPY). The panel covers 3,020 trading days (2013-01-02 to 2024-12-31), providing a structurally diverse cross-sectional environment for regime-heterogeneous research.
+</p>
+<p>
+<strong>Asset coverage summary:</strong>
+</p>
+<table><thead>
+<tr><th>Asset</th><th>Trading Days</th><th>First Date</th><th>Last Date</th><th>Missingness</th><th>Mean Ann. Vol</th></tr>
+</tr></thead><tbody>
+<tr><td>SPY</td><td>3020</td><td>2013-01-02</td><td>2024-12-31</td><td>0.0%</td><td>14.8%</td></tr>
+</tbody></table>
+<p>
+<strong>Universe integrity:</strong>
+</p>
+<p>
+All 1 assets have complete coverage across all 3,020 trading days (2013-01-02 – 2024-12-31). Missingness: 0.0% for every asset. No structural gaps, delistings, or duplicate timestamps detected. Universe breadth is structurally stable throughout the backtest period.
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/cross_asset_volatility.png" alt="Cross Asset Volatility"><figcaption>Cross Asset Volatility</figcaption></figure>
+<p>
+*63-day rolling annualised volatility by asset. Persistent divergence between risk-on and risk-off assets confirms macro regime heterogeneity. Synchronised spikes identify systemic stress episodes.*
+</p>
+<h2>Data Infrastructure</h2>
+<p>
+<strong>Data source:</strong> Yahoo Finance daily OHLCV data, ingested via <code>yfinance</code> and persisted to local Parquet files for reproducibility. All prices are adjusted closing prices.
+</p>
+<p>
+<strong>Alignment policy:</strong> Inner join across all universe constituents — only trading days on which every asset has a valid price are retained. This ensures a consistent observation timeline for feature construction.
+</p>
+<p>
+<strong>Missing value policy:</strong> Forward-fill up to a configurable limit (default: 5 trading days) for isolated gaps caused by exchange holidays or data vendor gaps. Gaps exceeding the limit remain NaN and are surfaced in diagnostics rather than silently filled. Over-cleaning (excessive interpolation) introduces bias by smoothing market structure.
+</p>
+<p>
+<strong>Coverage:</strong> 3020 trading days from 2013-01-02 to 2024-12-31 across 1 assets.
+</p>
+<table><thead>
+<tr><th>Asset</th><th>NaN Count</th><th>Ann. Return</th><th>Ann. Volatility</th></tr>
+</tr></thead><tbody>
+<tr><td>SPY</td><td>0</td><td>13.0%</td><td>16.8%</td></tr>
+</tbody></table>
+<figure><img src="../figures/canonical_ml_showcase_v10/rolling_volatility.png" alt="Rolling Volatility"><figcaption>Rolling Volatility</figcaption></figure>
+<p>
+*63-day realised volatility. Elevated regimes and spikes contextualise coefficient instability, feature drift, and drawdown episodes below.*
+</p>
+<h2>Feature Engineering</h2>
+<p>
+The <code>SPY</code> price history is transformed into a structured feature space. Each feature operationalises a specific hypothesis about the information content embedded in price time series — momentum persistence, volatility clustering, or trend strength. All features are constructed as pure functions of historical prices, ensuring no look-ahead contamination at the feature generation stage.
+</p>
+<p>
+<strong>Feature registry</strong> — 6 features constructed on <code>SPY</code>:
+</p>
+<table><thead>
+<tr><th>Name</th><th>Family</th><th>Transform</th><th>Window</th><th>Normalisation</th></tr>
+</tr></thead><tbody>
+<tr><td>20D Momentum</td><td>Trend</td><td>trailing_return</td><td>20</td><td>raw</td></tr>
+<tr><td>252D Momentum</td><td>Trend</td><td>trailing_return</td><td>252</td><td>raw</td></tr>
+<tr><td>21D Realized Volatility</td><td>Volatility</td><td>rolling_std_annualised</td><td>21</td><td>raw</td></tr>
+<tr><td>20D Z-Score</td><td>Mean-Reversion</td><td>rolling_zscore</td><td>20</td><td>zscore</td></tr>
+<tr><td>20D Trend Strength</td><td>Trend</td><td>slope_r2</td><td>20</td><td>raw</td></tr>
+<tr><td>5D Momentum</td><td>Trend</td><td>trailing_return</td><td>5</td><td>raw</td></tr>
+</tbody></table>
+<p>
+*Rolling z-score features are normalised in-place: mean and standard deviation are estimated over a rolling window centred at time t−1. This ensures normalisation parameters are derived from past data only, preserving the leakage-free property.*
+</p>
+<p>
+<strong>Label construction:</strong>
+</p>
+<table><thead>
+<tr><th>Parameter</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Label type</td><td><code>forward_returns</code></td></tr>
+<tr><td>Horizon</td><td>21 trading days</td></tr>
+</tbody></table>
+<p>
+<strong>Sample construction and alignment:</strong>
+</p>
+<table><thead>
+<tr><th>Stage</th><th>Count / Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Raw price observations (per asset)</td><td>3020</td></tr>
+<tr><td>Warm-up rows removed (feature NaN)</td><td>252</td></tr>
+<tr><td>Label rows removed (forward horizon NaN)</td><td>21</td></tr>
+<tr><td>Final aligned training samples</td><td>2747</td></tr>
+<tr><td>Total alignment loss</td><td>9.0%</td></tr>
+<tr><td>Effective sample range</td><td>2014-01-02 to 2024-11-29</td></tr>
+</tbody></table>
+<p>
+*Warm-up rows are removed when rolling feature windows require a minimum history (e.g., a 252-day momentum feature has no valid value for the first 252 observations). Label rows are removed because the forward return horizon creates NaN labels on the final N trading days of the sample.*
+</p>
+<p>
+<strong>Per-feature statistics (full-history, pre-alignment):</strong>
+</p>
+<table><thead>
+<tr><th>Feature</th><th>Mean</th><th>Std</th><th>Skew</th><th>AR(1)</th><th>Coverage</th></tr>
+</tr></thead><tbody>
+<tr><td>20D Momentum</td><td>0.0103</td><td>0.0416</td><td>-1.30</td><td>0.936</td><td>99.3%</td></tr>
+<tr><td>252D Momentum</td><td>0.1224</td><td>0.1328</td><td>0.20</td><td>0.991</td><td>91.7%</td></tr>
+<tr><td>21D Realized Volatility</td><td>0.1420</td><td>0.0915</td><td>4.07</td><td>0.993</td><td>99.3%</td></tr>
+<tr><td>20D Z-Score</td><td>0.4176</td><td>1.2603</td><td>-0.73</td><td>0.859</td><td>99.4%</td></tr>
+<tr><td>20D Trend Strength</td><td>0.2753</td><td>0.6307</td><td>-0.61</td><td>0.984</td><td>99.4%</td></tr>
+<tr><td>5D Momentum</td><td>0.0026</td><td>0.0219</td><td>-0.85</td><td>0.778</td><td>99.8%</td></tr>
+</tbody></table>
+<figure><img src="../figures/canonical_ml_showcase_v10/feature_correlation_heatmap.png" alt="Feature Correlation Heatmap"><figcaption>Feature Correlation Heatmap</figcaption></figure>
+<p>
+*Pairwise feature correlations. Correlated clusters reduce effective dimensionality; Ridge regularisation partially mitigates collinearity but reduces coefficient interpretability.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_feature_regimes.png" alt="Ml Feature Regimes"><figcaption>Ml Feature Regimes</figcaption></figure>
+<p>
+*Feature z-scores through time (±3σ). Red bands mark extreme positive regimes; blue marks extreme negative. Reveals when features were informative and where the environment shifted across the backtest period.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/feature_ic_heatmap.png" alt="Feature Ic Heatmap"><figcaption>Feature Ic Heatmap</figcaption></figure>
+<p>
+*Pearson IC per feature per walk-forward test split. Green cells mark positive predictive relationships; red marks breakdown. Reveals whether feature predictive power is consistent or regime-specific.*
+</p>
+<p>
+<strong>Feature family grouping:</strong>
+</p>
+<table><thead>
+<tr><th>Family</th><th>Features</th><th>Hypothesis</th></tr>
+</tr></thead><tbody>
+<tr><td>Trend</td><td>20D Momentum, 252D Momentum, 20D Trend Strength, 5D Momentum</td><td>Directional momentum and price-continuation signals. Positive IC in trending regimes; may …</td></tr>
+<tr><td>Volatility</td><td>21D Realized Volatility</td><td>Risk-regime indicators capturing realised and implied volatility structure. Tend to be neg…</td></tr>
+<tr><td>Mean-Reversion</td><td>20D Z-Score</td><td>Price normalisation and short-horizon reversion pressure. Effective when markets are range…</td></tr>
+</tbody></table>
+<p>
+This experiment deploys 6 features across 3 canonical families. Each family operationalises a distinct market hypothesis; orthogonal families provide diversified information sources, reducing model dependence on any single regime hypothesis.
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/feature_family_ic.png" alt="Feature Family Ic"><figcaption>Feature Family Ic</figcaption></figure>
+<p>
+*Mean Pearson IC aggregated by feature family per walk-forward split. Positive bars confirm that the family hypothesis held in that regime; negative bars indicate systematic reversal. Persistent dominance by a single family flags model concentration risk.*
+</p>
+<h2>Backtesting Methodology</h2>
+<p>
+All backtests use a strictly vectorized, look-ahead-safe execution framework. The critical invariant: no information from period *t* enters the position that earns the return of period *t*.
+</p>
+<p>
+<strong>Timing convention:</strong>
+</p>
+<table><thead>
+<tr><th>Step</th><th>Action</th><th>When</th></tr>
+</tr></thead><tbody>
+<tr><td>Signal computed</td><td>Momentum scores calculated from all prices ≤ day *t*</td><td>Close of day *t*</td></tr>
+<tr><td>Position entered</td><td>Computed weights applied to portfolio</td><td>Open of day *t+1*</td></tr>
+<tr><td>Return realized</td><td>Portfolio return earned</td><td>Close of day *t+1*</td></tr>
+</tbody></table>
+<p>
+<strong>Implementation:</strong> <code>applied_weights = weights.shift(1)</code>. The strategy never observes the return it will receive when deciding to trade. The first row of every backtest has a zero position — the portfolio is flat until the first valid signal propagates through the one-day lag.
+</p>
+<p>
+<strong>Portfolio return computation per period:</strong>
+</p>
+<p>
+<code>`</code>
+gross_return_t  = sum_i( weight_{i,t-1} * asset_return_{i,t} )
+transaction_cost_t = sum_i( |weight_{i,t} - weight_{i,t-1}| ) * (5 / 10_000)
+net_return_t    = gross_return_t - transaction_cost_t
+equity_curve_t  = product_{s&lt;=t}( 1 + net_return_s ),  anchored at 1.0
+drawdown_t      = ( equity_t - max_{s&lt;=t} equity_s ) / max_{s&lt;=t} equity_s
+<code>`</code>
+</p>
+<p>
+<strong>Transaction cost model:</strong> One-way costs of 5 bps are applied to each unit of absolute portfolio weight change. Cost is incurred only on actual weight changes — during forward-fill periods between rebalances, weights are unchanged and no cost is deducted.
+</p>
+<p>
+<strong>Turnover definition:</strong> Daily turnover = sum of absolute weight changes across all assets per period. High mean daily turnover implies high transaction cost drag; the cost model above makes this drag explicit.
+</p>
+<h2>Portfolio Construction Process</h2>
+<p>
+**Signal-to-portfolio pipeline for <code>RidgeRegression</code> on <code>SPY</code>:**
+</p>
+<p>
+<code>`</code>
+prices[t-window : t]
+  → feature_matrix(&#x27;mom_20&#x27;, &#x27;mom_252&#x27;, &#x27;vol_21&#x27;, &#x27;zscore_20&#x27;, ... (6 total))
+       (X: 6 columns, no NaN rows, pre-alignment)
+  → RidgeRegression.predict(X_clean)
+       (raw score: expected forward returns)
+  → signal_fn(predictions)   [sign]
+       weight_t = 1 if predicted &gt; 0 else 0   (long or flat)
+  → forward_fill to daily index
+  → shift(1)   [look-ahead prevention]
+  → weights applied in portfolio backtest engine
+<code>`</code>
+</p>
+<p>
+<strong>Leakage-prevention:</strong> The <code>shift(1)</code> operation ensures that the weight active on trading day *t* was computed from information available only up to close of day *t−1*. The first valid signal enters the portfolio on the trading day following the first non-NaN prediction.
+</p>
+<p>
+<strong>Position sizing:</strong> Equal-weight long-only. The model takes a full unit position when the prediction is positive and holds cash (zero weight) when the prediction is non-positive. There is no fractional position scaling — all conviction comes from the binary direction of the prediction.
+</p>
+<p>
+<strong>Transaction cost model:</strong> Costs are applied to every unit of absolute weight change per period. The model&#x27;s net alpha must exceed the cost drag implied by its turnover to be viable in a live deployment.
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/portfolio_turnover.png" alt="Portfolio Turnover"><figcaption>Portfolio Turnover</figcaption></figure>
+<p>
+*Portfolio turnover quantifies daily weight change magnitude — the primary determinant of transaction cost drag. Periods of elevated turnover reduce net returns through friction. Turnover spikes that coincide with drawdown periods indicate cost-exacerbated losses: the signal is reversing precisely when it is most expensive to act on, amplifying rather than merely reducing performance.*
+</p>
+<h2>ML Model Behaviour</h2>
+<p>
+<strong>Predictive quality:</strong>
+</p>
+<table><thead>
+<tr><th>Metric</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Directional accuracy (full period)</td><td>66.8%</td></tr>
+<tr><td>Mean monthly IC (Pearson)</td><td>0.5078</td></tr>
+<tr><td>% months with positive IC</td><td>87.8%</td></tr>
+<tr><td>Aligned training samples</td><td>2,747</td></tr>
+</tbody></table>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_ic_regime.png" alt="Ml Ic Regime"><figcaption>Ml Ic Regime</figcaption></figure>
+<p>
+*Mean IC 0.508 (88% positive) — strong directional signal. Sub-period troughs mark regimes where the feature space lost predictive content.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_rolling_da.png" alt="Ml Rolling Da"><figcaption>Ml Rolling Da</figcaption></figure>
+<p>
+*Full-period directional accuracy 66.8%. Periods below 50% indicate the model generated net-incorrect directional calls — regime-linked degradation, not statistical noise.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_residuals.png" alt="Ml Residuals"><figcaption>Ml Residuals</figcaption></figure>
+<p>
+*Symmetric residuals near zero indicate an unbiased model. Skew or heavy tails signal calibration failure in extreme regimes. Rolling residual mean reveals temporal bias drift. 97% positive predictions — long-biased; errors skew toward missed downside. Directional accuracy: 66.8%.*
+</p>
+<p>
+<strong>Prediction confidence calibration:</strong>
+</p>
+<table><thead>
+<tr><th>Quintile</th><th>N</th><th>Mean pred</th><th>Mean actual</th><th>Dir. accuracy</th></tr>
+</tr></thead><tbody>
+<tr><td>Q1</td><td>550</td><td>+0.0013</td><td>+0.0021</td><td>57.3%</td></tr>
+<tr><td>Q2</td><td>549</td><td>+0.0045</td><td>+0.0096</td><td>67.4%</td></tr>
+<tr><td>Q3</td><td>549</td><td>+0.0081</td><td>+0.0027</td><td>67.4%</td></tr>
+<tr><td>Q4</td><td>549</td><td>+0.0129</td><td>+0.0140</td><td>72.1%</td></tr>
+<tr><td>Q5</td><td>550</td><td>+0.0240</td><td>+0.0223</td><td>69.6%</td></tr>
+</tbody></table>
+<p>
+*Q5 accuracy (69.6%) exceeds Q1 (57.3%) — prediction magnitude carries information; higher-conviction signals are more accurate.*
+</p>
+<p>
+<strong>Feature importance summary</strong> (sorted by sign consistency):
+</p>
+<table><thead>
+<tr><th>Feature</th><th>Full-period coef</th><th>Mean OOS coef</th><th>Sign consistency</th></tr>
+</tr></thead><tbody>
+<tr><td>252D Momentum</td><td>+0.0111</td><td>-0.0445</td><td>71%</td></tr>
+<tr><td>21D Realized Volatility</td><td>+0.0852</td><td>+0.0522</td><td>71%</td></tr>
+<tr><td>20D Z-Score</td><td>-0.0007</td><td>-0.0007</td><td>71%</td></tr>
+<tr><td>20D Momentum</td><td>-0.0545</td><td>-0.0140</td><td>57%</td></tr>
+<tr><td>20D Trend Strength</td><td>-0.0020</td><td>-0.0026</td><td>57%</td></tr>
+<tr><td>5D Momentum</td><td>-0.0122</td><td>-0.0054</td><td>57%</td></tr>
+</tbody></table>
+<p>
+*Full-period coef is from the model fitted on all data; mean OOS coef is the average across walk-forward splits. Divergence between the two indicates regime-specific learning — the full-period model captures structure the walk-forward splits did not consistently reproduce.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_coefficient_stability.png" alt="Ml Coefficient Stability"><figcaption>Ml Coefficient Stability</figcaption></figure>
+<p>
+*252D Momentum most stable (71% sign consistency); 20D Momentum least stable (57%) — regime-dependent contribution. Wide error bars or sign reversals indicate training-regime-specific fitting.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_coefficient_sign_heatmap.png" alt="Ml Coefficient Sign Heatmap"><figcaption>Ml Coefficient Sign Heatmap</figcaption></figure>
+<p>
+*<code>20D Momentum</code>, <code>20D Trend Strength</code>, <code>5D Momentum</code> change sign across splits — regime-specific learning, not stable directional relationships. Stable features maintain colour throughout; reversals are the instability signature.*
+</p>
+<h3>Temporal Feature Contribution</h3>
+<p>
+Feature contribution measures realised predictive influence: coefficient × standardised feature value at each date. Unlike static coefficient tables, contribution captures when each feature was activated, suppressed, or inverted — exposing how the model&#x27;s internal predictive structure evolved through time.
+</p>
+<table><thead>
+<tr><th>Diagnostic</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Dominant family (by contribution share)</td><td>Volatility (62% of periods)</td></tr>
+<tr><td>Family leadership transitions</td><td>44</td></tr>
+<tr><td>Mean contribution concentration (HHI)</td><td>0.528 — concentrated (one family dominates)</td></tr>
+<tr><td>Most temporally volatile feature</td><td>21D Realized Volatility</td></tr>
+</tbody></table>
+<p>
+The <strong>Volatility</strong> family dominated predictions in 62% of periods, indicating the model&#x27;s directional prediction signal was concentrated in a single predictive hypothesis for most of the backtest. This is characteristic of a momentum-regime environment where trend information dominates.
+</p>
+<p>
+Contribution structure was stable and concentrated — 44 family leadership transitions across the backtest — consistent with a model that operated in persistent predictive regimes rather than frequently adapting.
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/feature_contribution_heatmap.png" alt="Feature Contribution Heatmap"><figcaption>Feature Contribution Heatmap</figcaption></figure>
+<p>
+*Feature contribution heatmap: realised predictive influence (coefficient × standardised feature value) for each feature through time, grouped by family. Red = positive contribution (feature state predicts above-average cross-sectional return); blue = negative. Family separators mark hypothesis boundaries. Regime shifts appear as horizontal band colour transitions; simultaneous sign changes across a family reveal coordinated hypothesis activation or suppression.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/family_contribution_timeline.png" alt="Family Contribution Timeline"><figcaption>Family Contribution Timeline</figcaption></figure>
+<p>
+*Feature family contribution timeline. Top panel: signed rolling family contributions — shows which hypothesis family drove predictions and in which direction. Persistent positive contributions indicate an actively reinforcing family; negative contributions indicate the family is working against the dominant direction. Bottom panel: normalised absolute contribution share — shows family dominance through time regardless of sign. Regime shifts appear as share transitions between families.*
+</p>
+<h3>Regime-Conditional Feature Behaviour</h3>
+<p>
+The 7 walk-forward test windows are classified into high-volatility (3 splits) and low-volatility (4 splits) regimes using median cross-asset 21D realised volatility as threshold. This classification exposes conditional IC behaviour — which feature families provided signal under stressed vs calm conditions.
+</p>
+<table><thead>
+<tr><th>Feature Family</th><th>High-Vol Mean IC</th><th>Low-Vol Mean IC</th><th>Differential</th></tr>
+</tr></thead><tbody>
+<tr><td>Trend</td><td>-0.189</td><td>-0.226</td><td>+0.037</td></tr>
+<tr><td>Volatility</td><td>+0.262</td><td>+0.321</td><td>-0.059</td></tr>
+<tr><td>Mean-Reversion</td><td>-0.108</td><td>-0.265</td><td>+0.156</td></tr>
+</tbody></table>
+<p>
+The <strong>Volatility</strong> family provided the strongest IC in both volatility regimes, indicating a regime-persistent directional hypothesis. The IC differential across regimes reveals the degree of regime sensitivity within this dominant family.
+</p>
+<p>
+<strong>Mean-Reversion</strong> shows the largest regime sensitivity (differential +0.156), contributing stronger in high-vol splits.
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/ic_by_vol_regime.png" alt="Ic By Vol Regime"><figcaption>Ic By Vol Regime</figcaption></figure>
+<p>
+*Feature family mean IC disaggregated by vol regime. Solid bars = high-volatility test splits; faded = low-volatility. Regime threshold: median cross-asset 21D realised vol across 7 test windows. Sign reversals between solid and faded bars indicate regime-dependent hypothesis flips.*
+</p>
+<h2>Performance Metrics</h2>
+<table><thead>
+<tr><th>Metric</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Annualized Return</td><td>0.0929</td></tr>
+<tr><td>Annualized Volatility</td><td>0.1647</td></tr>
+<tr><td>Sharpe Ratio</td><td>0.6223</td></tr>
+<tr><td>Max Drawdown</td><td>-0.3410</td></tr>
+<tr><td>Calmar Ratio</td><td>0.2725</td></tr>
+<tr><td>Hit Rate</td><td>0.4990</td></tr>
+</tbody></table>
+<figure><img src="../figures/canonical_ml_showcase_v10/equity_and_drawdown.png" alt="Equity And Drawdown"><figcaption>Equity And Drawdown</figcaption></figure>
+<p>
+*Max drawdown -34.1% — severe. Sharpe 0.62. Slow recovery indicates signal-edge loss, not random noise.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/rolling_sharpe.png" alt="Rolling Sharpe"><figcaption>Rolling Sharpe</figcaption></figure>
+<p>
+*Extended sub-zero periods mark sustained underperformance episodes. Rolling Sharpe variance is as diagnostically informative as its mean.*
+</p>
+<h2>Walk-Forward Validation</h2>
+<p>
+Chronological rolling validation: each test window immediately follows its training window in calendar time, with no overlap. This is the only leakage-safe simulation of live deployment — the model is never tested on data from periods it could have seen during training.
+</p>
+<p>
+<strong>Validation type:</strong> <code>rolling</code>
+</p>
+<table><thead>
+<tr><th>Parameter</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>step_months</td><td>12</td></tr>
+<tr><td>test_months</td><td>12</td></tr>
+<tr><td>train_months</td><td>48</td></tr>
+</tbody></table>
+<figure><img src="../figures/canonical_ml_showcase_v10/walk_forward_stitched.png" alt="Walk Forward Stitched"><figcaption>Walk Forward Stitched</figcaption></figure>
+<p>
+*Concatenated OOS test segments in chronological order. Consistent segment slopes across different market regimes confirm structural alpha. Persistent growth through stress periods is the strongest evidence of generalisation.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/walk_forward_timeline.png" alt="Walk Forward Timeline"><figcaption>Walk Forward Timeline</figcaption></figure>
+<p>
+*Train/test windows in calendar time with OOS Sharpe annotated. Green test bars are positive-Sharpe splits; red are negative. Window widths reflect the configured train and test lengths.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/split_sharpes.png" alt="Split Sharpes"><figcaption>Split Sharpes</figcaption></figure>
+<p>
+*Per-split OOS Sharpe distribution. High variance across splits indicates regime-dependent performance; a single outlier inflating the mean is a key failure mode.*
+</p>
+<figure><img src="../figures/canonical_ml_showcase_v10/train_vs_test_sharpe.png" alt="Train Vs Test Sharpe"><figcaption>Train Vs Test Sharpe</figcaption></figure>
+<p>
+*Mean OOS Sharpe -0.38 across 7 splits (negative, 29% positive). Large per-split gaps mark regime-specific overfitting.*
+</p>
+<h2>Failure Analysis</h2>
+<p>
+<strong>Failure analysis — ML signal:</strong>
+</p>
+<p>
+*Out-of-sample verdict:* RidgeRegression failed to generalise out-of-sample: 5 of 7 test windows produced negative Sharpe (mean OOS Sharpe: -0.38). The in-sample signal does not survive chronological validation — the primary evidence of overfitting or regime specificity.
+</p>
+<p>
+<strong>Known failure modes for ML price-history strategies:</strong>
+</p>
+<ul>
+<li>*Regime non-stationarity* — Feature-return relationships shift across macro regimes (risk-on/risk-off, trending/mean-reverting, high/low volatility). A model trained on 2013–2016 data learns relationships that may not hold in 2022 tightening cycles or 2020 dislocation episodes. Mean IC of 0.508 confirms directional signal exists in aggregate, but sub-period IC variation (visible in the IC chart) reveals regime dependence.</li>
+<li>*Feature instability* — <code>mom_20</code>, <code>trend_20</code>, <code>mom_5</code> show sign consistency below 60% across walk-forward splits, indicating their directional contribution reverses in different training regimes. The model is learning regime-specific patterns, not persistent market relationships.</li>
+<li>*Overfitting on training regime* — Ridge regularisation constrains but does not eliminate overfitting risk. Large train-to-test Sharpe gaps in specific splits are the diagnostic signature of regime-specific learning.</li>
+<li>*Binary signal coarseness* — The sign signal collapses continuous predictions to a binary long/flat position. Low-conviction predictions near zero generate positions identical in size to high-conviction signals, reducing the effective information ratio of the signal-to-position translation.</li>
+<li>*Transaction cost drag at high turnover* — The sign signal can produce frequent position reversals when predictions oscillate around zero. Each reversal incurs full round-trip cost. Cost drag is most acute in regimes where the signal has low directional persistence.</li>
+</ul>
+<p>
+<strong>Volatility-regime-conditioned performance:</strong>
+</p>
+<table><thead>
+<tr><th>Vol regime</th><th>N obs</th><th>Realized Sharpe</th><th>IC</th><th>Dir. accuracy</th></tr>
+</tr></thead><tbody>
+<tr><td>Low</td><td>909</td><td>9.86</td><td>0.1502</td><td>74.5%</td></tr>
+<tr><td>Medium</td><td>909</td><td>4.68</td><td>0.2671</td><td>66.8%</td></tr>
+<tr><td>High</td><td>909</td><td>1.65</td><td>0.3189</td><td>59.7%</td></tr>
+</tbody></table>
+<p>
+*Realized Sharpe deteriorates from low- to high-volatility regime (Δ8.21). IC follows the same pattern — regime-conditioned degradation, not random variation.*
+</p>
+<p>
+<strong>Instability propagation:</strong>
+</p>
+<p>
+Coefficient sign reversals in 20D Momentum, 20D Trend Strength, 5D Momentum indicate the model learned regime-specific rather than structural relationships. IC is consistently positive (88% of periods, mean 0.5078), propagating coefficient instability into signal degradation. Directional accuracy (66.8%) is above random; signal degradation from unstable features reaches realised trade outcomes. The Sharpe compression in high-volatility regimes confirms the propagation completes: feature instability → IC breakdown → ranking errors → losses.
+</p>
+<p>
+<strong>Identified drawdown windows (&gt; 5% peak-to-trough):</strong>
+</p>
+<table><thead>
+<tr><th>Drawdown Start</th><th>Trough</th><th>Recovery</th><th>Max DD</th><th>Duration</th></tr>
+</tr></thead><tbody>
+<tr><td>2020-02-25</td><td>2020-03-23</td><td>2020-06-08</td><td>-34.1%</td><td>104d</td></tr>
+<tr><td>2022-04-05</td><td>2022-10-12</td><td>2023-07-18</td><td>-25.4%</td><td>469d</td></tr>
+<tr><td>2018-12-04</td><td>2018-12-24</td><td>2019-02-22</td><td>-20.2%</td><td>80d</td></tr>
+</tbody></table>
+<p>
+<strong>Worst out-of-sample split:</strong>
+</p>
+<ul>
+<li>Split 4 — test period 2021-01-04 to 2021-12-31</li>
+<li>Sharpe: -1.89</li>
+<li>Return: -22.6%</li>
+<li>Max DD: -24.1%</li>
+</ul>
+<figure><img src="../figures/canonical_ml_showcase_v10/split_equity_curves.png" alt="Split Equity Curves"><figcaption>Split Equity Curves</figcaption></figure>
+<p>
+*Divergent split trajectories identify regimes where the signal broke down. Consistent slopes across periods indicate regime-independent alpha.*
+</p>
+<h2>Diagnostics Appendix</h2>
+<p>
+Detailed diagnostics for walk-forward validation and ML signal quality.
+</p>
+<h3>Walk-Forward Stability</h3>
+<table><thead>
+<tr><th>Metric</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Splits</td><td>7</td></tr>
+<tr><td>Mean Sharpe</td><td>-0.3790</td></tr>
+<tr><td>Std Sharpe</td><td>1.3409</td></tr>
+<tr><td>Positive-Sharpe rate</td><td>28.6%</td></tr>
+<tr><td>Mean annualised return</td><td>-4.20%</td></tr>
+<tr><td>Mean max drawdown</td><td>-19.77%</td></tr>
+<tr><td>Worst max drawdown</td><td>-33.21%</td></tr>
+</tbody></table>
+<h3>ML Signal Diagnostics</h3>
+<table><thead>
+<tr><th>Metric</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Avg daily turnover</td><td>0.0361</td></tr>
+<tr><td>Signal activity</td><td>91.6%</td></tr>
+</tbody></table>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_signal_turnover.png" alt="Ml Signal Turnover"><figcaption>Ml Signal Turnover</figcaption></figure>
+<p>
+*Turnover spikes correlate with elevated cost drag. Coincidence with drawdown periods indicates cost structure amplifying losses.*
+</p>
+<h2>Metadata</h2>
+<table><thead>
+<tr><th>Field</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>Experiment</td><td><code>canonical_ml_showcase_v10</code></td></tr>
+<tr><td>Strategy</td><td><code>MLStrategy(Ridge(alpha=1.0))</code></td></tr>
+<tr><td>Created</td><td>2026-06-06T20:27:52.401889+00:00</td></tr>
+</tbody></table>
+<h2>Configuration</h2>
+<p>
+<strong>Universe:</strong> SPY
+</p>
+<p>
+<strong>Date range:</strong> 2013-01-01 to 2024-12-31
+</p>
+<p>
+<strong>Strategy type:</strong> <code>ML / RidgeRegression</code>
+</p>
+<p>
+<strong>Transaction cost:</strong> 5.0 bps
+<strong>Validation:</strong> <code>rolling</code>
+</p>
+<h2>Figures</h2>
+<h3>Allocation History</h3>
+<figure><img src="../figures/canonical_ml_showcase_v10/allocation_history.png" alt="Allocation History"><figcaption>Allocation History</figcaption></figure>
+<p>
+*Stacked allocation history — fractional weight per asset at each rebalance date. Concentration corresponds to momentum leaders in the cross-sectional ranking.*
+</p>
+<h3>Ml Information Coefficient</h3>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_information_coefficient.png" alt="Ml Information Coefficient"><figcaption>Ml Information Coefficient</figcaption></figure>
+<p>
+*Monthly rolling information coefficient (Pearson correlation of predicted vs actual returns). Persistent positive IC confirms the model adds directional information beyond chance.*
+</p>
+<h3>Ml Prediction Vs Actual</h3>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_prediction_vs_actual.png" alt="Ml Prediction Vs Actual"><figcaption>Ml Prediction Vs Actual</figcaption></figure>
+<p>
+*Prediction vs actual overlay (top panel) and scatter (bottom panel). Appendix-level supplement to the rolling IC diagnostics. Concentration along the positive diagonal confirms directional alignment.*
+</p>
+<h3>Ml Prediction Distribution</h3>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_prediction_distribution.png" alt="Ml Prediction Distribution"><figcaption>Ml Prediction Distribution</figcaption></figure>
+<p>
+*Distribution of raw model predictions. Near-symmetric distributions centred near zero indicate a well-calibrated model without directional drift or label leakage.*
+</p>
+<h3>Ml Coefficient Evolution</h3>
+<figure><img src="../figures/canonical_ml_showcase_v10/ml_coefficient_evolution.png" alt="Ml Coefficient Evolution"><figcaption>Ml Coefficient Evolution</figcaption></figure>
+<p>
+*Coefficient trajectory across walk-forward splits (chronological). Stable features maintain consistent sign and magnitude; unstable features cross zero, indicating regime-dependent learning.*
+</p>
+<h2>Provenance</h2>
+<table><thead>
+<tr><th>Key</th><th>Value</th></tr>
+</tr></thead><tbody>
+<tr><td>ML hash</td><td><code>acac9b495a2e</code></td></tr>
+</tbody></table>
+<hr>
+<p>
+Report version: 1
+Generated: 2026-06-06T20:28:01.869044+00:00
+Source experiment: canonical_ml_showcase_v10
+</p>
+</body>
+</html>

@@ -21,6 +21,22 @@ from src.orchestration.memory.memory_store import (
     load_records,
     write_records,
 )
+from src.orchestration.memory.semantic_indexer import (
+    build_semantic_index,
+    build_semantic_text,
+    compute_source_hash,
+)
+from src.orchestration.memory.semantic_retriever import (
+    cosine_similarity,
+    rank_by_vector,
+)
+from src.orchestration.memory.semantic_store import (
+    SemanticRecord,
+    load_manifest,
+    load_semantic_records,
+    semantic_index_exists,
+    write_semantic_records,
+)
 
 __all__ = [
     "ARTEFACT_TYPES",
@@ -31,4 +47,15 @@ __all__ = [
     "index_exists",
     "load_records",
     "write_records",
+    # Phase 2 — semantic retrieval
+    "SemanticRecord",
+    "build_semantic_index",
+    "build_semantic_text",
+    "compute_source_hash",
+    "rank_by_vector",
+    "cosine_similarity",
+    "semantic_index_exists",
+    "load_semantic_records",
+    "write_semantic_records",
+    "load_manifest",
 ]

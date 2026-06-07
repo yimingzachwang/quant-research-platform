@@ -38,6 +38,18 @@ _EXPECTED_TOOLS = {
     "get_research_memory_status",
     "index_research_memory",
     "retrieve_research_memory",
+    "get_semantic_research_memory_status",
+    "index_semantic_research_memory",
+    "semantic_retrieve_research_memory",
+    "inspect_experiment_config",
+    "list_changeable_config_fields",
+    "list_available_features",
+    "list_supported_models",
+    "generate_config_change_draft",
+    "generate_parameter_change_draft",
+    "get_experiment_metrics",
+    "compare_experiment_metrics",
+    "inspect_comparison_evidence",
     "list_experiments",
     "create_research_session",
     "get_session_summary",
@@ -183,6 +195,101 @@ def _stub_memory_items() -> list:
     ]
 
 
+def _stub_semantic_status() -> dict:
+    return {
+        "index_exists": True,
+        "item_count": 28,
+        "embedding_model": "text-embedding-nomic-embed-text-v1.5",
+        "embedding_dim": 768,
+        "index_path": "results/research_memory/semantic_memory_index.jsonl",
+    }
+
+
+def _stub_semantic_index_result() -> dict:
+    return {
+        "status": "ok",
+        "embedded_count": 28,
+        "newly_embedded": 28,
+        "reused": 0,
+        "embedding_model": "text-embedding-nomic-embed-text-v1.5",
+        "embedding_dim": 768,
+        "index_path": "results/research_memory/semantic_memory_index.jsonl",
+    }
+
+
+def _stub_semantic_retrieve_result() -> dict:
+    return {
+        "status": "ok",
+        "query": "momentum instability and OOS consistency",
+        "embedding_model": "text-embedding-nomic-embed-text-v1.5",
+        "items": [
+            {
+                "memory_id": "mem_abc123",
+                "score": 0.842,
+                "experiment_name": "canonical_ml_showcase_v7",
+                "artefact_type": "llm_review",
+                "path": "results/llm_reviews/canonical_ml_showcase_v7/llm_review.json",
+                "context_hash": "h" * 64,
+                "failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+                "tags": ["validation", "momentum", "oos_consistency"],
+                "short_summary": "Post-run review found persistent OOS instability.",
+            }
+        ],
+    }
+
+
+def _stub_param_change_result() -> dict:
+    return {"status": "ok", "draft": _stub_draft(False)}
+
+
+def _stub_metrics_result() -> dict:
+    return {
+        "status": "ok",
+        "experiment_name": "canonical_ml_showcase_v9_v2",
+        "metrics": {
+            "sharpe_ratio": 0.61,
+            "annualized_return_pct": "8.00%",
+            "annualized_volatility_pct": "13.10%",
+            "max_drawdown_pct": "-31.20%",
+            "calmar_ratio": 0.26,
+            "hit_rate_pct": "51.00%",
+            "mean_oos_sharpe": -0.22,
+            "std_oos_sharpe": 1.11,
+            "n_splits": 6,
+            "n_negative_sharpe_splits": 4,
+            "hit_rate_positive_sharpe_pct": "33.00%",
+            "worst_split_drawdown_pct": "-40.00%",
+            "consistency_tier": "weak",
+        },
+        "missing_metrics": [],
+        "failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+        "metrics_path": "results/experiments/canonical_ml_showcase_v9_v2/metrics.json",
+        "report_path": "reports/markdown/canonical_ml_showcase_v9_v2.md",
+        "plots_dir": "results/experiments/canonical_ml_showcase_v9_v2/plots",
+    }
+
+
+def _stub_compare_result() -> dict:
+    return {
+        "status": "ok",
+        "base_experiment": "canonical_ml_showcase_v9",
+        "candidate_experiment": "canonical_ml_showcase_v9_v2",
+        "base_sharpe": 0.42,
+        "candidate_sharpe": 0.61,
+        "delta_sharpe": 0.19,
+        "base_mean_oos_sharpe": -0.30,
+        "candidate_mean_oos_sharpe": -0.22,
+        "delta_mean_oos_sharpe": 0.08,
+        "base_max_drawdown": "-34.00%",
+        "candidate_max_drawdown": "-31.20%",
+        "delta_max_drawdown_pct": 2.8,
+        "base_failure_modes": ["poor_oos_consistency"],
+        "candidate_failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+        "conclusion": "Comparison v9 -> v9_v2: Sharpe 0.42 -> 0.61; mean OOS Sharpe -0.3 -> -0.22.",
+        "evidence_path": "results/comparisons/canonical_ml_showcase_v9__vs__canonical_ml_showcase_v9_v2/comparison_evidence.json",
+    }
+
+
 def _stub_state(**overrides) -> dict:
     state = {
         "experiment_name": "exp_a",
@@ -230,7 +337,7 @@ def test_no_all_in_one_or_loop_tool_exists():
     names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
     # Granular tools only — nothing that runs the whole flow silently.
     # (check_research_workflow_state is a read-only preflight, not a run loop.)
-    assert len(names) == 19
+    assert len(names) == 31
     for forbidden in ("auto", "loop", "full", "pipeline", "run_all", "orchestrate", "everything"):
         assert not any(forbidden in n.lower() for n in names), f"loop-like tool name: {forbidden}"
 
@@ -256,7 +363,12 @@ def test_operator_manual_returns_envelope():
 
 
 def test_operator_manual_is_compact():
-    assert len(json.dumps(zeto.get_zeto_operator_manual())) < 4000
+    # The manual is a one-time session-start reference (not a per-step workflow
+    # output), so it carries a slightly larger ceiling than per-step tools as the
+    # toolset and governance rules grow. Per-step outputs stay capped at 4000.
+    # 5 new config-introspection/change tools added routing rules; budget raised
+    # from 4800 to 5600.
+    assert len(json.dumps(zeto.get_zeto_operator_manual())) < 5600
 
 
 def test_operator_manual_includes_key_rules():
@@ -413,6 +525,330 @@ def test_memory_tools_do_not_approve_render_or_execute():
 
 
 # ---------------------------------------------------------------------------
+# Semantic research memory tools (Phase 2) — compact, read-only, evidence-only
+# ---------------------------------------------------------------------------
+
+
+def test_semantic_tools_are_registered():
+    names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert {
+        "get_semantic_research_memory_status",
+        "index_semantic_research_memory",
+        "semantic_retrieve_research_memory",
+    } <= names
+
+
+def test_semantic_status_envelope_when_index_exists():
+    with patch(f"{_MOD}.get_semantic_research_memory_status", return_value=_stub_semantic_status()):
+        out = zeto.get_semantic_research_memory_status()
+    assert _CONTRACT_KEYS.issubset(out)
+    assert out["ok"] is True
+    assert out["stage"] == "semantic_memory_status"
+    assert out["data"]["item_count"] == 28
+    assert "text-embedding-nomic-embed-text-v1.5" in out["display"]
+    assert out["next_suggested_action"] == "semantic_retrieve_research_memory"
+
+
+def test_semantic_status_missing_index_suggests_indexing():
+    missing = {
+        "index_exists": False, "item_count": 0,
+        "embedding_model": "text-embedding-nomic-embed-text-v1.5",
+        "embedding_dim": 0,
+        "index_path": "results/research_memory/semantic_memory_index.jsonl",
+    }
+    with patch(f"{_MOD}.get_semantic_research_memory_status", return_value=missing):
+        out = zeto.get_semantic_research_memory_status()
+    assert out["ok"] is True
+    assert out["next_suggested_action"] == "index_semantic_research_memory"
+
+
+def test_semantic_index_envelope_and_delegates():
+    with patch(f"{_MOD}.index_semantic_research_memory", return_value=_stub_semantic_index_result()) as m:
+        out = zeto.index_semantic_research_memory()
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "semantic_memory_indexed"
+    assert out["data"]["embedded_count"] == 28
+    assert out["next_suggested_action"] == "semantic_retrieve_research_memory"
+
+
+def test_semantic_index_no_phase1_points_to_phase1():
+    with patch(f"{_MOD}.index_semantic_research_memory",
+               return_value={"status": "no_phase1_index", "embedded_count": 0}):
+        out = zeto.index_semantic_research_memory()
+    assert out["ok"] is False
+    assert out["stage"] == "semantic_memory_index_blocked"
+    assert out["next_suggested_action"] == "index_research_memory"
+
+
+def test_semantic_index_embedding_failure_stops():
+    with patch(f"{_MOD}.index_semantic_research_memory",
+               return_value={"status": "embedding_failed", "error": "RuntimeError: down"}):
+        out = zeto.index_semantic_research_memory()
+    assert out["ok"] is False
+    assert out["stage"] == "semantic_memory_index_failed"
+    assert out["next_suggested_action"] != "index_semantic_research_memory"
+    assert "stop" in out["display"].lower()
+
+
+def test_semantic_retrieve_envelope_and_items():
+    with patch(f"{_MOD}.semantic_retrieve_research_memory", return_value=_stub_semantic_retrieve_result()) as m:
+        out = zeto.semantic_retrieve_research_memory(
+            query="momentum instability and OOS consistency",
+            failure_modes=["poor_oos_consistency"], top_k=5,
+        )
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "semantic_memory_retrieved"
+    assert out["data"]["item_count"] == 1
+    item = out["data"]["items"][0]
+    assert item["score"] == 0.842
+    assert item["path"].endswith("llm_review.json")
+
+
+def test_semantic_retrieve_no_phase1_points_to_phase1_index():
+    with patch(f"{_MOD}.semantic_retrieve_research_memory",
+               return_value={"status": "no_phase1_index", "query": "x", "items": []}):
+        out = zeto.semantic_retrieve_research_memory(query="x")
+    assert out["ok"] is False
+    assert out["next_suggested_action"] == "index_research_memory"
+
+
+def test_semantic_retrieve_no_semantic_index_points_to_semantic_index():
+    with patch(f"{_MOD}.semantic_retrieve_research_memory",
+               return_value={"status": "no_semantic_index", "query": "x", "items": []}):
+        out = zeto.semantic_retrieve_research_memory(query="x")
+    assert out["ok"] is False
+    assert out["next_suggested_action"] == "index_semantic_research_memory"
+
+
+def test_semantic_retrieve_embedding_failure_stops_no_invented_evidence():
+    with patch(f"{_MOD}.semantic_retrieve_research_memory",
+               return_value={"status": "embedding_failed", "error": "RuntimeError: down",
+                             "query": "x", "items": []}):
+        out = zeto.semantic_retrieve_research_memory(query="x")
+    assert out["ok"] is False
+    assert out["stage"] == "semantic_memory_retrieval_failed"
+    assert out["data"]["items"] == []
+    assert out["next_suggested_action"] != "semantic_retrieve_research_memory"
+    blob = out["display"].lower()
+    assert "stop" in blob and "invent" in blob
+
+
+def test_semantic_retrieve_payload_is_small():
+    big_items = [
+        {
+            "memory_id": f"mem_{i}", "score": 0.9,
+            "experiment_name": "canonical_ml_showcase_v2", "artefact_type": "llm_review",
+            "path": f"results/llm_reviews/exp_{i}/llm_review.json", "context_hash": "h" * 64,
+            "failure_modes": ["poor_oos_consistency", "catastrophic_split"],
+            "tags": ["validation", "momentum", "oos_consistency"],
+            "short_summary": "Review found persistent validation instability.",
+        }
+        for i in range(5)
+    ]
+    with patch(f"{_MOD}.semantic_retrieve_research_memory",
+               return_value={"status": "ok", "query": "x", "items": big_items}):
+        out = zeto.semantic_retrieve_research_memory(query="x", top_k=5)
+    assert len(json.dumps(out)) < 4000
+
+
+def test_semantic_tools_expose_no_path_or_file_arguments():
+    # No arbitrary file access: tools accept only query/filters and embedding
+    # provider/model/base_url — never a filesystem path.
+    assert len(inspect.signature(zeto.get_semantic_research_memory_status).parameters) == 0
+    index_params = set(inspect.signature(zeto.index_semantic_research_memory).parameters)
+    assert index_params == {"provider", "model", "base_url"}
+    retrieve_params = set(inspect.signature(zeto.semantic_retrieve_research_memory).parameters)
+    assert retrieve_params == {
+        "query", "top_k", "experiment_name", "failure_modes", "artefact_type",
+        "tags", "provider", "model", "base_url",
+    }
+    for params in (index_params, retrieve_params):
+        assert not (params & {"path", "file", "config_path", "memory_base"})
+
+
+def test_semantic_tools_do_not_approve_render_or_execute():
+    with (
+        patch(f"{_MOD}.get_semantic_research_memory_status", return_value=_stub_semantic_status()),
+        patch(f"{_MOD}.index_semantic_research_memory", return_value=_stub_semantic_index_result()),
+        patch(f"{_MOD}.semantic_retrieve_research_memory", return_value=_stub_semantic_retrieve_result()),
+        patch(f"{_MOD}.approve_experiment_draft") as m_approve,
+        patch(f"{_MOD}.render_draft_to_yaml") as m_render,
+        patch(f"{_MOD}.execute_approved_config") as m_exec,
+        patch(f"{_MOD}.run_llm_review") as m_review,
+        patch(f"{_MOD}.generate_experiment_draft") as m_draft,
+    ):
+        zeto.get_semantic_research_memory_status()
+        zeto.index_semantic_research_memory()
+        zeto.semantic_retrieve_research_memory(query="oos")
+    m_approve.assert_not_called()
+    m_render.assert_not_called()
+    m_exec.assert_not_called()
+    m_review.assert_not_called()
+    m_draft.assert_not_called()
+
+
+def test_operator_manual_includes_semantic_rules():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    assert "semantic_retrieve_research_memory" in blob
+    assert "suggestions, not proof" in blob
+    assert "if semantic retrieval fails" in blob
+
+
+# ---------------------------------------------------------------------------
+# Explicit parameter-change draft + authoritative metrics tools
+# ---------------------------------------------------------------------------
+
+
+def test_explicit_and_metrics_tools_registered():
+    names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
+    assert {
+        "generate_parameter_change_draft",
+        "get_experiment_metrics",
+        "compare_experiment_metrics",
+    } <= names
+
+
+def test_parameter_change_draft_envelope_shows_diff():
+    with patch(f"{_MOD}.generate_parameter_change_draft", return_value=_stub_param_change_result()) as m:
+        out = zeto.generate_parameter_change_draft(
+            "exp_a", "model.params.alpha", 1.0
+        )
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "parameter_change_draft_generated"
+    assert out["data"]["approved"] is False
+    assert "model.params.alpha: 0.5 -> 1.0" in out["display"]
+    assert out["next_suggested_action"] == "validate_experiment_draft"
+
+
+def test_parameter_change_draft_refusal_no_fallback():
+    refusal = {"status": "invalid_field_path", "errors": ["Invalid or disallowed field_path 'x'"]}
+    with patch(f"{_MOD}.generate_parameter_change_draft", return_value=refusal):
+        out = zeto.generate_parameter_change_draft("exp_a", "x", 1.0)
+    assert out["ok"] is False
+    assert out["stage"] == "parameter_change_draft_failed"
+    assert out["next_suggested_action"] != "generate_experiment_draft"
+    assert "draft_id" not in out["data"]
+    assert "fallback" in out["display"].lower()
+
+
+def test_parameter_change_draft_schema_incompatible_refused():
+    refusal = {"status": "schema_incompatible", "errors": ["invalid model type"]}
+    with patch(f"{_MOD}.generate_parameter_change_draft", return_value=refusal):
+        out = zeto.generate_parameter_change_draft("exp_a", "model.type", "Banana")
+    assert out["ok"] is False
+    assert out["stage"] == "parameter_change_draft_failed"
+
+
+def test_parameter_change_draft_does_not_approve_render_execute():
+    with (
+        patch(f"{_MOD}.generate_parameter_change_draft", return_value=_stub_param_change_result()),
+        patch(f"{_MOD}.approve_experiment_draft") as m_approve,
+        patch(f"{_MOD}.render_draft_to_yaml") as m_render,
+        patch(f"{_MOD}.execute_approved_config") as m_exec,
+    ):
+        out = zeto.generate_parameter_change_draft("exp_a", "model.params.alpha", 2.0)
+    assert out["data"]["approved"] is False
+    m_approve.assert_not_called()
+    m_render.assert_not_called()
+    m_exec.assert_not_called()
+
+
+def test_get_experiment_metrics_envelope():
+    with patch(f"{_MOD}.get_experiment_metrics", return_value=_stub_metrics_result()) as m:
+        out = zeto.get_experiment_metrics("canonical_ml_showcase_v9_v2")
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "experiment_metrics_loaded"
+    assert out["data"]["metrics"]["sharpe_ratio"] == 0.61
+    # Display surfaces the authoritative numbers + failure modes.
+    assert "0.61" in out["display"]
+    assert "-0.22" in out["display"]
+    assert "poor_oos_consistency" in out["display"]
+    assert out["next_suggested_action"] == "compare_experiment_metrics"
+
+
+def test_get_experiment_metrics_not_found_does_not_invent():
+    nf = {"status": "not_found", "experiment_name": "x", "metrics": {}, "missing_metrics": []}
+    with patch(f"{_MOD}.get_experiment_metrics", return_value=nf):
+        out = zeto.get_experiment_metrics("x")
+    assert out["ok"] is False
+    assert out["stage"] == "experiment_metrics_unavailable"
+    assert "invent" in out["display"].lower()
+    assert out["next_suggested_action"] == "list_experiments"
+
+
+def test_compare_experiment_metrics_envelope():
+    with patch(f"{_MOD}.compare_experiment_metrics", return_value=_stub_compare_result()) as m:
+        out = zeto.compare_experiment_metrics(
+            "canonical_ml_showcase_v9", "canonical_ml_showcase_v9_v2"
+        )
+    m.assert_called_once()
+    assert out["ok"] is True
+    assert out["stage"] == "experiment_metrics_compared"
+    assert out["data"]["delta_sharpe"] == 0.19
+    assert "Comparison" in out["display"]
+
+
+def test_compare_experiment_metrics_not_found():
+    nf = {
+        "status": "not_found",
+        "base_experiment": "a", "candidate_experiment": "b",
+        "missing_experiments": ["b"],
+    }
+    with patch(f"{_MOD}.compare_experiment_metrics", return_value=nf):
+        out = zeto.compare_experiment_metrics("a", "b")
+    assert out["ok"] is False
+    assert out["stage"] == "experiment_metrics_unavailable"
+
+
+def test_metrics_tools_do_not_touch_rag_memory_or_execution():
+    with (
+        patch(f"{_MOD}.get_experiment_metrics", return_value=_stub_metrics_result()),
+        patch(f"{_MOD}.compare_experiment_metrics", return_value=_stub_compare_result()),
+        patch(f"{_MOD}.retrieve_research_memory") as m_kw,
+        patch(f"{_MOD}.semantic_retrieve_research_memory") as m_sem,
+        patch(f"{_MOD}.execute_approved_config") as m_exec,
+        patch(f"{_MOD}.approve_experiment_draft") as m_approve,
+    ):
+        zeto.get_experiment_metrics("exp_a")
+        zeto.compare_experiment_metrics("exp_a", "exp_a_v2")
+    m_kw.assert_not_called()
+    m_sem.assert_not_called()
+    m_exec.assert_not_called()
+    m_approve.assert_not_called()
+
+
+def test_explicit_and_metrics_tools_expose_no_filesystem_path_args():
+    assert set(inspect.signature(zeto.get_experiment_metrics).parameters) == {"experiment_name"}
+    assert set(inspect.signature(zeto.compare_experiment_metrics).parameters) == {
+        "base_experiment_name", "candidate_experiment_name",
+        "session_id", "research_question", "tested_change",
+    }
+    param_sig = set(inspect.signature(zeto.generate_parameter_change_draft).parameters)
+    assert param_sig == {
+        "experiment_name", "field_path", "proposed_value", "session_id", "reason"
+    }
+    # field_path is a config dotted path, not a filesystem path; no base/config_path/file.
+    assert not (param_sig & {"base", "config_path", "configs_base", "file"})
+
+
+def test_operator_manual_includes_routing_rules():
+    blob = json.dumps(zeto.get_zeto_operator_manual()).lower()
+    # Explicit config-change routing.
+    assert "generate_parameter_change_draft" in blob
+    assert "set alpha to 2" in blob
+    # Authoritative metric routing.
+    assert "get_experiment_metrics" in blob
+    assert "compare_experiment_metrics" in blob
+    assert "never retrieve_research_memory" in blob
+    # Never invent metrics/report contents.
+    assert "never invent report contents or sample metrics" in blob
+
+
+# ---------------------------------------------------------------------------
 # Visible-state contract on EVERY tool
 # ---------------------------------------------------------------------------
 
@@ -442,12 +878,31 @@ def _call_every_tool() -> dict[str, dict]:
         p("get_research_memory_status", return_value=_stub_memory_status())
         p("index_research_memory", return_value=_stub_memory_index_result())
         p("retrieve_research_memory", return_value=_stub_memory_items())
+        p("get_semantic_research_memory_status", return_value=_stub_semantic_status())
+        p("index_semantic_research_memory", return_value=_stub_semantic_index_result())
+        p("semantic_retrieve_research_memory", return_value=_stub_semantic_retrieve_result())
+        p("generate_parameter_change_draft", return_value=_stub_param_change_result())
+        p("get_experiment_metrics", return_value=_stub_metrics_result())
+        p("compare_experiment_metrics", return_value=_stub_compare_result())
         return {
             "get_zeto_operator_manual": zeto.get_zeto_operator_manual(),
             "get_research_memory_status": zeto.get_research_memory_status(),
             "index_research_memory": zeto.index_research_memory(),
             "retrieve_research_memory": zeto.retrieve_research_memory(
                 query="poor oos consistency", failure_modes=["poor_oos_consistency"]
+            ),
+            "get_semantic_research_memory_status": zeto.get_semantic_research_memory_status(),
+            "index_semantic_research_memory": zeto.index_semantic_research_memory(),
+            "semantic_retrieve_research_memory": zeto.semantic_retrieve_research_memory(
+                query="momentum instability and OOS consistency",
+                failure_modes=["poor_oos_consistency"],
+            ),
+            "generate_parameter_change_draft": zeto.generate_parameter_change_draft(
+                "canonical_ml_showcase_v9", "model.params.alpha", 2.0
+            ),
+            "get_experiment_metrics": zeto.get_experiment_metrics("canonical_ml_showcase_v9_v2"),
+            "compare_experiment_metrics": zeto.compare_experiment_metrics(
+                "canonical_ml_showcase_v9", "canonical_ml_showcase_v9_v2"
             ),
             "list_experiments": zeto.list_experiments(),
             "create_research_session": zeto.create_research_session("exp_a", "goal"),
@@ -899,7 +1354,7 @@ def test_render_still_refuses_unapproved_draft_after_gate():
 
 def test_approval_gate_adds_no_new_tool_or_loop():
     names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
-    assert len(names) == 19
+    assert len(names) == 31
     for forbidden in ("auto", "loop", "full", "pipeline", "run_all", "orchestrate", "everything"):
         assert not any(forbidden in n.lower() for n in names)
 
@@ -978,7 +1433,7 @@ def test_governance_changes_add_no_new_tool_or_loop():
     # The fix is to next_suggested_action / displays only — no tool was added,
     # and nothing loop-like was introduced.
     names = {t.name for t in zeto.mcp._tool_manager.list_tools()}
-    assert len(names) == 19
+    assert len(names) == 31
     for forbidden in ("auto", "loop", "full", "pipeline", "run_all", "orchestrate"):
         assert not any(forbidden in n.lower() for n in names)
 
@@ -1320,7 +1775,14 @@ def test_no_verbose_keys_in_any_tool_data():
 
 def test_all_tool_payloads_are_small():
     # Generous per-tool ceilings; the principle is "small for a 32k window".
-    bigger = {"execute_approved_config": 6000, "get_session_summary": 6000}
+    # The operator manual is a one-time session-start reference, not a per-step
+    # output, so it carries a slightly larger ceiling. Raised from 4800→5600
+    # when 5 config-introspection/change tools added routing rules.
+    bigger = {
+        "execute_approved_config": 6000,
+        "get_session_summary": 6000,
+        "get_zeto_operator_manual": 5600,
+    }
     for name, out in _call_every_tool().items():
         size = len(json.dumps(out))
         assert size < bigger.get(name, 4000), f"{name} payload too large: {size}"

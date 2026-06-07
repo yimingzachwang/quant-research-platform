@@ -682,3 +682,43 @@ def _json_safe(obj: Any) -> Any:
     if isinstance(obj, (list, tuple)):
         return [_json_safe(v) for v in obj]
     return obj
+
+
+# ---------------------------------------------------------------------------
+# Public schema accessors (used by config-introspection and draft layers)
+# ---------------------------------------------------------------------------
+
+
+def get_valid_feature_types() -> frozenset[str]:
+    """Return the authoritative set of valid feature type strings."""
+    return _VALID_FEATURE_TYPES
+
+
+def get_feature_required_params() -> dict[str, frozenset[str]]:
+    """Return the required params mapping per feature type."""
+    return dict(_FEATURE_REQUIRED_PARAMS)
+
+
+def get_valid_model_types() -> frozenset[str]:
+    """Return the authoritative set of valid model type strings."""
+    return _VALID_MODEL_TYPES
+
+
+def get_valid_label_types() -> frozenset[str]:
+    """Return the authoritative set of valid label type strings."""
+    return _VALID_LABEL_TYPES
+
+
+def get_valid_signal_types() -> frozenset[str]:
+    """Return the authoritative set of valid signal type strings."""
+    return _VALID_SIGNAL_TYPES
+
+
+def get_valid_weighting_schemes() -> frozenset[str]:
+    """Return the authoritative set of valid weighting scheme strings."""
+    return _VALID_WEIGHTING_SCHEMES
+
+
+def get_valid_prediction_normalizations() -> frozenset[str]:
+    """Return the authoritative set of valid prediction normalisation strings."""
+    return _VALID_PREDICTION_NORMALIZATIONS

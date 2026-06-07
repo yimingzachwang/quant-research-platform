@@ -16,6 +16,7 @@ Indexed sources (and the artefact_type assigned to each):
   results/llm_reviews/*/draft_*.json          -> draft
   reports/markdown/*.md                        -> report
   results/research_sessions/*/session.json     -> session
+  results/comparisons/*/comparison_evidence.json -> comparison_evidence
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from src.orchestration.memory.memory_schema import (
     compute_memory_id,
 )
 from src.orchestration.utils.filesystem import (
+    comparisons_root,
     experiments_root,
     llm_reviews_root,
     reports_markdown_dir,
@@ -52,6 +54,8 @@ _TAG_VOCAB: tuple[tuple[str, str], ...] = (
     ("regularis", "regularisation"),
     ("regulariz", "regularisation"),
     ("ridge", "regularisation"),
+    ("lasso", "regularisation"),
+    ("elasticnet", "regularisation"),
     ("feature", "features"),
     ("turnover", "turnover"),
     ("instab", "instability"),
@@ -59,6 +63,16 @@ _TAG_VOCAB: tuple[tuple[str, str], ...] = (
     ("directional", "directional_accuracy"),
     ("coefficient", "coefficient_stability"),
     ("volatility", "volatility"),
+    ("comparison", "comparison"),
+    ("vs", "comparison"),
+    ("before", "comparison"),
+    ("after", "comparison"),
+    ("model_change", "model_change"),
+    ("model change", "model_change"),
+    ("feature_change", "feature_change"),
+    ("feature change", "feature_change"),
+    ("added", "feature_change"),
+    ("removed", "feature_change"),
 )
 
 
@@ -72,6 +86,7 @@ def build_memory_records(
     llm_base: Path | str | None = None,
     reports_base: Path | str | None = None,
     sessions_base: Path | str | None = None,
+    comparisons_base: Path | str | None = None,
 ) -> list[MemoryRecord]:
     """Scan the known artefact locations and return compact memory records.
 
@@ -83,6 +98,7 @@ def build_memory_records(
     records.extend(_index_llm_reviews(llm_base))
     records.extend(_index_reports(reports_base))
     records.extend(_index_sessions(sessions_base))
+    records.extend(_index_comparisons(comparisons_base))
     return records
 
 
@@ -220,6 +236,43 @@ def _index_sessions(sessions_base: Path | str | None) -> list[MemoryRecord]:
     return records
 
 
+def _index_comparisons(comparisons_base: Path | str | None) -> list[MemoryRecord]:
+    root = comparisons_root(comparisons_base)
+    if not root.exists():
+        return []
+    records: list[MemoryRecord] = []
+    for comp_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        ev_path = comp_dir / "comparison_evidence.json"
+        data = load_json(ev_path)
+        if not isinstance(data, dict):
+            continue
+        base_exp = data.get("base_experiment_name", "")
+        cand_exp = data.get("candidate_experiment_name", "")
+        # Use the candidate as the primary experiment key (it's the one being tested).
+        experiment_name = cand_exp or base_exp or comp_dir.name
+        failure_modes = list(data.get("failure_modes_candidate") or [])
+        summary = _comparison_evidence_summary(data)
+        tag_text = " ".join([
+            summary,
+            base_exp,
+            cand_exp,
+            data.get("tested_change") or "",
+            data.get("research_question") or "",
+            " ".join(failure_modes),
+        ])
+        records.append(_make_record(
+            artefact_type="comparison_evidence",
+            path=ev_path,
+            experiment_name=experiment_name,
+            created_at=data.get("created_at", ""),
+            session_id=data.get("session_id"),
+            summary=summary,
+            failure_modes=failure_modes,
+            tag_text=tag_text,
+        ))
+    return records
+
+
 # ---------------------------------------------------------------------------
 # Record + field helpers
 # ---------------------------------------------------------------------------
@@ -342,6 +395,27 @@ def _report_summary(md_path: Path) -> str:
         first = ""
     title = first or md_path.stem
     return f"Report: {title}"
+
+
+def _comparison_evidence_summary(data: dict) -> str:
+    base = data.get("base_experiment_name", "?")
+    cand = data.get("candidate_experiment_name", "?")
+    deltas = data.get("metric_deltas") or {}
+    d_sharpe = deltas.get("delta_sharpe")
+    d_oos = deltas.get("delta_mean_oos_sharpe")
+    tested = data.get("tested_change") or ""
+    conclusion = (data.get("conclusion") or "").strip()
+
+    parts = [f"Comparison {base} vs {cand}"]
+    if tested:
+        parts.append(f"tested: {tested}")
+    if d_sharpe is not None:
+        parts.append(f"delta_sharpe={d_sharpe:+.3f}")
+    if d_oos is not None:
+        parts.append(f"delta_oos={d_oos:+.3f}")
+    if conclusion:
+        parts.append(conclusion)
+    return "; ".join(parts)
 
 
 def _session_summary(data: dict) -> str:
